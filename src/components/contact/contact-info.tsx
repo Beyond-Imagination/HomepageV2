@@ -157,15 +157,25 @@ export function ContactInfo() {
 
       {/* FAQ Dialog */}
       <Dialog open={!!selectedFaq} onOpenChange={(open: boolean) => !open && setSelectedFaq(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              {selectedFaq?.question}
-            </DialogTitle>
-            <DialogDescription className="text-base leading-relaxed pt-4">
+        <DialogContent className="max-w-2xl p-0 overflow-hidden">
+          <div className="bg-gradient-to-br from-accent/10 via-primary/5 to-transparent p-8 border-b border-border">
+            <DialogHeader>
+              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4">
+                <MessageCircle className="w-6 h-6 text-accent" />
+              </div>
+              <DialogTitle 
+                className="text-2xl font-bold text-foreground leading-tight"
+                style={{ fontFamily: 'var(--font-heading)' }}
+              >
+                {selectedFaq?.question}
+              </DialogTitle>
+            </DialogHeader>
+          </div>
+          <div className="p-8">
+            <DialogDescription className="text-base leading-relaxed text-foreground/80">
               {selectedFaq?.answer}
             </DialogDescription>
-          </DialogHeader>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
