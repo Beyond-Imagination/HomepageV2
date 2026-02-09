@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect, useState, useCallback, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronDown } from "lucide-react"
@@ -44,13 +42,16 @@ export function HeroSection() {
 
   useEffect(() => {
     const initialCount = 30
-    nextIdRef.current = initialCount
+    const initialStars: Star[] = []
 
     for (let i = 0; i < initialCount; i++) {
       const star = createStar(i)
-      setStars((stars) => [...stars, star])
+      initialStars.push(star)
       setTimeout(() => removeStar(i), star.duration * 1000)
     }
+
+    setStars(initialStars)
+    nextIdRef.current = initialCount
 
     // 주기적으로 새 별 추가
     const interval = setInterval(() => {

@@ -1,10 +1,4 @@
-import { Metadata } from "next"
 import { GalleryGrid } from "@/components/gallery/gallery-grid"
-
-export const metadata: Metadata = {
-  title: "Gallery | Beyond Imagination",
-  description: "Photos and memories from Beyond Imagination team activities",
-}
 
 export default function GalleryPage() {
   return (

@@ -1,10 +1,4 @@
-import { Metadata } from "next"
 import { TeamGrid } from "@/components/team/team-grid"
-
-export const metadata: Metadata = {
-  title: "Team | Beyond Imagination",
-  description: "Meet the creative minds behind Beyond Imagination",
-}
 
 export default function TeamPage() {
   return (

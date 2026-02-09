@@ -1,5 +1,5 @@
-import React, { Suspense } from 'react';
-import { useRoutes } from 'react-router-dom';
+import React, {Suspense} from 'react';
+import {useRoutes} from 'react-router-dom';
 import Layout from '@/components/Layout';
 
 // Lazy load pages for better performance
@@ -13,19 +13,17 @@ const Team = React.lazy(() => import('@/pages/Team'));
 const Loading = () => <div className="p-4">Loading...</div>;
 
 export default function App() {
-    const element = useRoutes([
+    return useRoutes([
         {
             path: '/',
-            element: <Layout />,
+            element: <Layout/>,
             children: [
-                { index: true, element: <Suspense fallback={<Loading />}><Home /></Suspense> },
-                { path: 'contact', element: <Suspense fallback={<Loading />}><Contact /></Suspense> },
-                { path: 'gallery', element: <Suspense fallback={<Loading />}><Gallery /></Suspense> },
-                { path: 'projects', element: <Suspense fallback={<Loading />}><Projects /></Suspense> },
-                { path: 'team', element: <Suspense fallback={<Loading />}><Team /></Suspense> },
+                {index: true, element: <Suspense fallback={<Loading/>}><Home/></Suspense>},
+                {path: 'contact', element: <Suspense fallback={<Loading/>}><Contact/></Suspense>},
+                {path: 'gallery', element: <Suspense fallback={<Loading/>}><Gallery/></Suspense>},
+                {path: 'projects', element: <Suspense fallback={<Loading/>}><Projects/></Suspense>},
+                {path: 'team', element: <Suspense fallback={<Loading/>}><Team/></Suspense>},
             ],
         },
     ]);
-
-    return element;
 }

@@ -1,9 +1,6 @@
-"use client"
-
 import { useState } from "react"
 
 import { Github, Linkedin, Globe, Mail } from "lucide-react"
-import { cn } from "@/lib/utils"
 
 interface TeamMember {
   id: number

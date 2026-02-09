@@ -1,11 +1,5 @@
-import { Metadata } from "next"
 import { ContactForm } from "@/components/contact/contact-form"
 import { ContactInfo } from "@/components/contact/contact-info"
-
-export const metadata: Metadata = {
-  title: "Contact | Beyond Imagination",
-  description: "Get in touch with Beyond Imagination team",
-}
 
 export default function ContactPage() {
   return (

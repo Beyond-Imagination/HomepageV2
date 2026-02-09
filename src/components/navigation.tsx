@@ -1,5 +1,3 @@
-"use client"
-
 import { Link, useLocation } from "react-router-dom"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
