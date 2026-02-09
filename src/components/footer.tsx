@@ -1,5 +1,5 @@
-import { Link } from "react-router-dom"
-import { Github, Mail } from "lucide-react"
+import { Link } from 'react-router-dom'
+import { Github, Mail } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -30,10 +30,10 @@ export function Footer() {
             <h4 className="font-semibold text-sm uppercase tracking-wider">Quick Links</h4>
             <ul className="space-y-2">
               {[
-                { href: "/projects", label: "Projects" },
-                { href: "/team", label: "Team" },
-                { href: "/gallery", label: "Gallery" },
-                { href: "/contact", label: "Contact" },
+                { href: '/projects', label: 'Projects' },
+                { href: '/team', label: 'Team' },
+                { href: '/gallery', label: 'Gallery' },
+                { href: '/contact', label: 'Contact' },
               ].map((link) => (
                 <li key={link.href}>
                   <Link

@@ -1,10 +1,4 @@
-import { Metadata } from "next"
-import { GalleryGrid } from "@/components/gallery/gallery-grid"
-
-export const metadata: Metadata = {
-  title: "Gallery | Beyond Imagination",
-  description: "Photos and memories from Beyond Imagination team activities",
-}
+import { GalleryGrid } from '@/components/gallery/gallery-grid'
 
 export default function GalleryPage() {
   return (
@@ -12,7 +6,7 @@ export default function GalleryPage() {
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-16">
-          <h1 
+          <h1
             className="text-4xl md:text-5xl font-bold text-primary mb-4"
             style={{ fontFamily: 'var(--font-heading)' }}
           >

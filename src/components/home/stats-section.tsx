@@ -1,40 +1,38 @@
-"use client"
-
-import { motion } from "framer-motion"
-import { useInView } from "framer-motion"
-import { useRef } from "react"
-import { Rocket, Users, Code, Calendar } from "lucide-react"
+import { motion } from 'framer-motion'
+import { useInView } from 'framer-motion'
+import { useRef } from 'react'
+import { Rocket, Users, Code, Calendar } from 'lucide-react'
 
 const stats = [
   {
     icon: Rocket,
-    value: "12+",
-    label: "Projects",
-    description: "완료된 프로젝트",
+    value: '12+',
+    label: 'Projects',
+    description: '완료된 프로젝트',
   },
   {
     icon: Users,
-    value: "8",
-    label: "Members",
-    description: "활동 중인 팀원",
+    value: '8',
+    label: 'Members',
+    description: '활동 중인 팀원',
   },
   {
     icon: Code,
-    value: "50K+",
-    label: "Lines of Code",
-    description: "작성된 코드",
+    value: '50K+',
+    label: 'Lines of Code',
+    description: '작성된 코드',
   },
   {
     icon: Calendar,
-    value: "3+",
-    label: "Years",
-    description: "함께한 시간",
+    value: '3+',
+    label: 'Years',
+    description: '함께한 시간',
   },
 ]
 
 export function StatsSection() {
   const ref = useRef(null)
-  const isInView = useInView(ref, { once: true, margin: "-100px" })
+  const isInView = useInView(ref, { once: true, margin: '-100px' })
 
   return (
     <section className="py-24 bg-background">
@@ -43,7 +41,7 @@ export function StatsSection() {
           ref={ref}
           className="grid grid-cols-2 md:grid-cols-4 gap-8"
           initial="hidden"
-          animate={isInView ? "visible" : "hidden"}
+          animate={isInView ? 'visible' : 'hidden'}
           variants={{
             visible: {
               transition: {
@@ -73,12 +71,8 @@ export function StatsSection() {
                 >
                   {stat.value}
                 </div>
-                <div className="text-sm font-medium text-foreground mb-1">
-                  {stat.label}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {stat.description}
-                </div>
+                <div className="text-sm font-medium text-foreground mb-1">{stat.label}</div>
+                <div className="text-xs text-muted-foreground">{stat.description}</div>
               </motion.div>
             )
           })}

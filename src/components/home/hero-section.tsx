@@ -1,8 +1,6 @@
-"use client"
-
-import { useEffect, useState, useCallback, useRef } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { ChevronDown } from "lucide-react"
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronDown } from 'lucide-react'
 
 interface Star {
   id: number
@@ -38,19 +36,22 @@ export function HeroSection() {
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY)
-    window.addEventListener("scroll", handleScroll, { passive: true })
-    return () => window.removeEventListener("scroll", handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
   useEffect(() => {
     const initialCount = 30
-    nextIdRef.current = initialCount
+    const initialStars: Star[] = []
 
     for (let i = 0; i < initialCount; i++) {
       const star = createStar(i)
-      setStars((stars) => [...stars, star])
+      initialStars.push(star)
       setTimeout(() => removeStar(i), star.duration * 1000)
     }
+
+    setStars(initialStars)
+    nextIdRef.current = initialCount
 
     // 주기적으로 새 별 추가
     const interval = setInterval(() => {
@@ -117,7 +118,7 @@ export function HeroSection() {
               initial={{ opacity: 0, scale: 0 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0 }}
-              transition={{ duration: star.duration / 2, ease: "easeInOut" }}
+              transition={{ duration: star.duration / 2, ease: 'easeInOut' }}
             />
           ))}
         </AnimatePresence>

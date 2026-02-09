@@ -1,16 +1,14 @@
-"use client"
-
-import { Link, useLocation } from "react-router-dom"
-import { useState } from "react"
-import { cn } from "@/lib/utils"
-import { Menu, X } from "lucide-react"
+import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { cn } from '@/lib/utils'
+import { Menu, X } from 'lucide-react'
 
 const navItems = [
-  { href: "/", label: "Home" },
-  { href: "/projects", label: "Projects" },
-  { href: "/team", label: "Team" },
-  { href: "/gallery", label: "Gallery" },
-  { href: "/contact", label: "Contact" },
+  { href: '/', label: 'Home' },
+  { href: '/projects', label: 'Projects' },
+  { href: '/team', label: 'Team' },
+  { href: '/gallery', label: 'Gallery' },
+  { href: '/contact', label: 'Contact' },
 ]
 
 export function Navigation() {
@@ -29,7 +27,10 @@ export function Navigation() {
             height={40}
             className="group-hover:scale-105 transition-transform"
           />
-          <span className="font-semibold text-primary hidden sm:block" style={{ fontFamily: 'var(--font-heading)' }}>
+          <span
+            className="font-semibold text-primary hidden sm:block"
+            style={{ fontFamily: 'var(--font-heading)' }}
+          >
             Beyond Imagination
           </span>
         </Link>
@@ -41,10 +42,8 @@ export function Navigation() {
               <Link
                 to={item.href}
                 className={cn(
-                  "text-sm font-medium transition-colors hover:text-accent",
-                  pathname === item.href
-                    ? "text-accent"
-                    : "text-muted-foreground"
+                  'text-sm font-medium transition-colors hover:text-accent',
+                  pathname === item.href ? 'text-accent' : 'text-muted-foreground'
                 )}
               >
                 {item.label}
@@ -58,7 +57,7 @@ export function Navigation() {
           type="button"
           className="md:hidden p-2 text-foreground"
           onClick={() => setIsOpen(!isOpen)}
-          aria-label={isOpen ? "Close menu" : "Open menu"}
+          aria-label={isOpen ? 'Close menu' : 'Open menu'}
         >
           {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
@@ -73,10 +72,8 @@ export function Navigation() {
                 <Link
                   to={item.href}
                   className={cn(
-                    "block text-base font-medium transition-colors hover:text-accent",
-                    pathname === item.href
-                      ? "text-accent"
-                      : "text-muted-foreground"
+                    'block text-base font-medium transition-colors hover:text-accent',
+                    pathname === item.href ? 'text-accent' : 'text-muted-foreground'
                   )}
                   onClick={() => setIsOpen(false)}
                 >

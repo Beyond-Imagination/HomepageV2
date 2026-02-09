@@ -1,9 +1,7 @@
-"use client"
+import { useState } from 'react'
 
-import { useState } from "react"
-
-import { X, ChevronLeft, ChevronRight } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface GalleryItem {
   id: number
@@ -13,81 +11,75 @@ interface GalleryItem {
   date: string
 }
 
-const categories = ["전체", "스터디", "해커톤", "네트워킹", "컨퍼런스"]
+const categories = ['전체', '스터디', '해커톤', '네트워킹', '컨퍼런스']
 
 const galleryItems: GalleryItem[] = [
   {
     id: 1,
-    src: "/images/gallery/study-01.jpg",
-    alt: "주간 스터디 세션",
-    category: "스터디",
-    date: "2024.12",
+    src: '/images/gallery/study-01.jpg',
+    alt: '주간 스터디 세션',
+    category: '스터디',
+    date: '2024.12',
   },
   {
     id: 2,
-    src: "/images/gallery/hackathon-01.jpg",
-    alt: "24시간 해커톤",
-    category: "해커톤",
-    date: "2024.11",
+    src: '/images/gallery/hackathon-01.jpg',
+    alt: '24시간 해커톤',
+    category: '해커톤',
+    date: '2024.11',
   },
   {
     id: 3,
-    src: "/images/gallery/networking-01.jpg",
-    alt: "개발자 네트워킹 데이",
-    category: "네트워킹",
-    date: "2024.10",
+    src: '/images/gallery/networking-01.jpg',
+    alt: '개발자 네트워킹 데이',
+    category: '네트워킹',
+    date: '2024.10',
   },
   {
     id: 4,
-    src: "/images/gallery/conference-01.jpg",
-    alt: "기술 컨퍼런스 참가",
-    category: "컨퍼런스",
-    date: "2024.09",
+    src: '/images/gallery/conference-01.jpg',
+    alt: '기술 컨퍼런스 참가',
+    category: '컨퍼런스',
+    date: '2024.09',
   },
   {
     id: 5,
-    src: "/images/gallery/study-02.jpg",
-    alt: "알고리즘 스터디",
-    category: "스터디",
-    date: "2024.08",
+    src: '/images/gallery/study-02.jpg',
+    alt: '알고리즘 스터디',
+    category: '스터디',
+    date: '2024.08',
   },
   {
     id: 6,
-    src: "/images/gallery/hackathon-02.jpg",
-    alt: "스타트업 해커톤 수상",
-    category: "해커톤",
-    date: "2024.07",
+    src: '/images/gallery/hackathon-02.jpg',
+    alt: '스타트업 해커톤 수상',
+    category: '해커톤',
+    date: '2024.07',
   },
   {
     id: 7,
-    src: "/images/gallery/networking-02.jpg",
-    alt: "연말 파티",
-    category: "네트워킹",
-    date: "2024.06",
+    src: '/images/gallery/networking-02.jpg',
+    alt: '연말 파티',
+    category: '네트워킹',
+    date: '2024.06',
   },
   {
     id: 8,
-    src: "/images/gallery/conference-02.jpg",
-    alt: "AWS Summit 참가",
-    category: "컨퍼런스",
-    date: "2024.05",
+    src: '/images/gallery/conference-02.jpg',
+    alt: 'AWS Summit 참가',
+    category: '컨퍼런스',
+    date: '2024.05',
   },
   {
     id: 9,
-    src: "/images/gallery/study-03.jpg",
-    alt: "시스템 디자인 스터디",
-    category: "스터디",
-    date: "2024.04",
+    src: '/images/gallery/study-03.jpg',
+    alt: '시스템 디자인 스터디',
+    category: '스터디',
+    date: '2024.04',
   },
 ]
 
-function GalleryCard({
-  item,
-  onClick
-}: {
-  item: GalleryItem
-  onClick: () => void
-}) {
+function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void }) {
   const [imageError, setImageError] = useState(false)
 
   return (
@@ -98,7 +90,7 @@ function GalleryCard({
     >
       {!imageError ? (
         <img
-          src={item.src || "/placeholder.svg"}
+          src={item.src || '/placeholder.svg'}
           alt={item.alt}
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           onError={() => setImageError(true)}
@@ -124,7 +116,7 @@ function Lightbox({
   onPrev,
   onNext,
   hasPrev,
-  hasNext
+  hasNext,
 }: {
   item: GalleryItem
   onClose: () => void
@@ -183,7 +175,7 @@ function Lightbox({
       >
         {!imageError ? (
           <img
-            src={item.src || "/placeholder.svg"}
+            src={item.src || '/placeholder.svg'}
             alt={item.alt}
             width={1200}
             height={800}
@@ -207,12 +199,13 @@ function Lightbox({
 }
 
 export function GalleryGrid() {
-  const [activeCategory, setActiveCategory] = useState("전체")
+  const [activeCategory, setActiveCategory] = useState('전체')
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
-  const filteredItems = activeCategory === "전체"
-    ? galleryItems
-    : galleryItems.filter(item => item.category === activeCategory)
+  const filteredItems =
+    activeCategory === '전체'
+      ? galleryItems
+      : galleryItems.filter((item) => item.category === activeCategory)
 
   const selectedItem = selectedIndex !== null ? filteredItems[selectedIndex] : null
 
@@ -226,10 +219,10 @@ export function GalleryGrid() {
             type="button"
             onClick={() => setActiveCategory(category)}
             className={cn(
-              "px-5 py-2 rounded-full text-sm font-medium transition-all",
+              'px-5 py-2 rounded-full text-sm font-medium transition-all',
               activeCategory === category
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
             )}
           >
             {category}
@@ -240,11 +233,7 @@ export function GalleryGrid() {
       {/* Gallery Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         {filteredItems.map((item, index) => (
-          <GalleryCard
-            key={item.id}
-            item={item}
-            onClick={() => setSelectedIndex(index)}
-          />
+          <GalleryCard key={item.id} item={item} onClick={() => setSelectedIndex(index)} />
         ))}
       </div>
 
@@ -253,8 +242,12 @@ export function GalleryGrid() {
         <Lightbox
           item={selectedItem}
           onClose={() => setSelectedIndex(null)}
-          onPrev={() => setSelectedIndex(prev => prev !== null && prev > 0 ? prev - 1 : prev)}
-          onNext={() => setSelectedIndex(prev => prev !== null && prev < filteredItems.length - 1 ? prev + 1 : prev)}
+          onPrev={() => setSelectedIndex((prev) => (prev !== null && prev > 0 ? prev - 1 : prev))}
+          onNext={() =>
+            setSelectedIndex((prev) =>
+              prev !== null && prev < filteredItems.length - 1 ? prev + 1 : prev
+            )
+          }
           hasPrev={selectedIndex !== null && selectedIndex > 0}
           hasNext={selectedIndex !== null && selectedIndex < filteredItems.length - 1}
         />

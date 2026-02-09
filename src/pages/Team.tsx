@@ -1,10 +1,4 @@
-import { Metadata } from "next"
-import { TeamGrid } from "@/components/team/team-grid"
-
-export const metadata: Metadata = {
-  title: "Team | Beyond Imagination",
-  description: "Meet the creative minds behind Beyond Imagination",
-}
+import { TeamGrid } from '@/components/team/team-grid'
 
 export default function TeamPage() {
   return (
@@ -12,7 +6,7 @@ export default function TeamPage() {
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-16">
-          <h1 
+          <h1
             className="text-4xl md:text-5xl font-bold text-primary mb-4"
             style={{ fontFamily: 'var(--font-heading)' }}
           >

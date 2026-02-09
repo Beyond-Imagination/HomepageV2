@@ -1,13 +1,11 @@
-"use client"
+import React from 'react'
 
-import React from "react"
-
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Send, CheckCircle } from "lucide-react"
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Send, CheckCircle } from 'lucide-react'
 
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -16,10 +14,10 @@ export function ContactForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsSubmitting(true)
-    
+
     // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+
     setIsSubmitting(false)
     setIsSubmitted(true)
   }
@@ -30,20 +28,14 @@ export function ContactForm() {
         <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
-        <h3 
+        <h3
           className="text-2xl font-semibold text-foreground mb-2"
           style={{ fontFamily: 'var(--font-heading)' }}
         >
           메시지가 전송되었습니다
         </h3>
-        <p className="text-muted-foreground mb-6">
-          빠른 시일 내에 답변드리겠습니다.
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setIsSubmitted(false)}
-        >
+        <p className="text-muted-foreground mb-6">빠른 시일 내에 답변드리겠습니다.</p>
+        <Button type="button" variant="outline" onClick={() => setIsSubmitted(false)}>
           새 메시지 작성
         </Button>
       </div>
@@ -52,7 +44,7 @@ export function ContactForm() {
 
   return (
     <div className="bg-card border border-border rounded-2xl p-8">
-      <h2 
+      <h2
         className="text-2xl font-semibold text-foreground mb-6"
         style={{ fontFamily: 'var(--font-heading)' }}
       >
@@ -62,13 +54,7 @@ export function ContactForm() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="name">이름</Label>
-            <Input
-              id="name"
-              name="name"
-              placeholder="홍길동"
-              required
-              className="bg-background"
-            />
+            <Input id="name" name="name" placeholder="홍길동" required className="bg-background" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="email">이메일</Label>
@@ -82,7 +68,7 @@ export function ContactForm() {
             />
           </div>
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="subject">제목</Label>
           <Input

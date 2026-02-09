@@ -1,11 +1,5 @@
-import { Metadata } from "next"
-import { ContactForm } from "@/components/contact/contact-form"
-import { ContactInfo } from "@/components/contact/contact-info"
-
-export const metadata: Metadata = {
-  title: "Contact | Beyond Imagination",
-  description: "Get in touch with Beyond Imagination team",
-}
+import { ContactForm } from '@/components/contact/contact-form'
+import { ContactInfo } from '@/components/contact/contact-info'
 
 export default function ContactPage() {
   return (
@@ -13,7 +7,7 @@ export default function ContactPage() {
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-16">
-          <h1 
+          <h1
             className="text-4xl md:text-5xl font-bold text-primary mb-4"
             style={{ fontFamily: 'var(--font-heading)' }}
           >
