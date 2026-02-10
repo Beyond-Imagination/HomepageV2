@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
-import { Github, Globe, Mail } from 'lucide-react'
+import { Globe, Mail } from 'lucide-react'
+import { GitHubIcon } from '@/components/icons/github-icon'
 
 interface TeamMember {
   id: number
@@ -121,7 +122,7 @@ function TeamCard({ member }: { member: TeamMember }) {
               className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center text-primary-foreground hover:bg-primary-foreground/30 transition-colors"
               aria-label={`${member.name}'s GitHub`}
             >
-              <Github className="w-5 h-5" />
+              <GitHubIcon className="w-5 h-5" />
             </a>
           )}
           {member.social.website && (

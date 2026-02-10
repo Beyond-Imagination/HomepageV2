@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
-import { Github, Mail } from 'lucide-react'
+import { Mail } from 'lucide-react'
+import { GitHubIcon } from '@/components/icons/github-icon'
 
 export function Footer() {
   return (
@@ -58,7 +59,7 @@ export function Footer() {
                 className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors"
                 aria-label="GitHub"
               >
-                <Github className="w-5 h-5" />
+                <GitHubIcon className="w-5 h-5" />
               </a>
               <a
                 href="mailto:contact@beyondimagination.dev"
