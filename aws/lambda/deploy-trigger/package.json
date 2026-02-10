@@ -1,0 +1,9 @@
+{
+  "name": "homepagev2-deploy-trigger-lambda",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@aws-sdk/client-codebuild": "^3.883.0"
+  }
+}

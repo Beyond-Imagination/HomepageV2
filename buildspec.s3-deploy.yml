@@ -1,0 +1,29 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 24
+    commands:
+      - corepack enable
+      - corepack prepare pnpm@10.29.2 --activate
+      - pnpm install --frozen-lockfile
+
+  build:
+    commands:
+      - pnpm build
+
+  post_build:
+    commands:
+      - test -n "$S3_BUCKET"
+      - aws s3 sync dist "s3://$S3_BUCKET" --delete --exclude "*.html" --cache-control "public,max-age=31536000,immutable"
+      - aws s3 sync dist "s3://$S3_BUCKET" --delete --exclude "*" --include "*.html" --cache-control "no-cache,no-store,must-revalidate"
+      - |
+        if [ -n "${CLOUDFRONT_DISTRIBUTION_ID:-}" ]; then
+          aws cloudfront create-invalidation --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" --paths "/*"
+        fi
+
+artifacts:
+  files:
+    - "**/*"
+  base-directory: dist
