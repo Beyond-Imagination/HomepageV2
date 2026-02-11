@@ -54,92 +54,49 @@ eslint . --fix
 pnpm lint:fix
 ```
 
-## AWS 크론 배포 (EventBridge + Lambda + CodeBuild + S3)
+## GitHub Actions 주간 배포 (S3 + 선택적 CloudFront)
 
-이 저장소에는 아래 파일이 추가되어 있습니다.
+이 저장소에서 자동 배포에 사용하는 파일:
 
-- Lambda 핸들러: `aws/lambda/deploy-trigger/index.mjs`
-- Lambda 의존성: `aws/lambda/deploy-trigger/package.json`
-- S3 배포용 CodeBuild 스펙: `buildspec.s3-deploy.yml`
+- 워크플로: `.github/workflows/deploy-s3-weekly.yml`
 
-권장 아키텍처:
+배포 흐름:
 
-1. EventBridge 스케줄(크론) 실행
-2. Lambda가 CodeBuild `StartBuild` 호출
-3. CodeBuild가 `pnpm build` 후 S3 동기화
-4. (선택) CloudFront 캐시 무효화
+1. GitHub Actions 스케줄 실행
+2. 프런트 빌드 (`pnpm build`)
+3. S3 동기화
+4. (선택) CloudFront 무효화
 
-### 1) 직접 채워야 하는 값 (계정정보/URL)
+### 스케줄
 
-아래 값들은 AWS 콘솔에서 확인 후 그대로 넣으세요.
+워크플로는 아래 스케줄로 설정되어 있습니다.
 
-- `AWS_ACCOUNT_ID`: 예) `123456789012`
-- `AWS_REGION`: 예) `ap-northeast-2`
-- `S3_BUCKET`: 정적 사이트 버킷 이름
-- `CLOUDFRONT_DISTRIBUTION_ID`: 예) `E123ABC456XYZ` (없으면 비워도 됨)
-- `SITE_URL`: 배포 사이트 URL (CloudFront 도메인 또는 커스텀 도메인)
-- `CODEBUILD_PROJECT_NAME`: 예) `homepagev2-s3-deploy`
-- `CODEBUILD_SOURCE_VERSION`: 예) `main` (배포 브랜치)
-- `EVENTBRIDGE_CRON`: 예) `cron(0 0 * * ? *)` (UTC 기준 매일 00:00)
-- `EVENTBRIDGE_TIMEZONE`: 예) `Asia/Seoul` (Scheduler 사용 시)
+- 한국시간 매주 월요일 00:00 (KST)
+- GitHub cron(UTC): `0 15 * * 0`
 
-### 2) Lambda 환경변수 설정
+참고: GitHub Actions cron은 UTC 기준입니다.
 
-Lambda 함수에 아래 환경변수를 설정하세요.
+### GitHub Secrets 설정
 
-- `CODEBUILD_PROJECT_NAME` (필수)
-- `CODEBUILD_SOURCE_VERSION` (선택, 기본 브랜치 지정용)
-- `CODEBUILD_ENV_OVERRIDES_JSON` (선택)
+리포지토리 `Settings > Secrets and variables > Actions`에 아래 시크릿을 추가하세요.
 
-`CODEBUILD_ENV_OVERRIDES_JSON` 예시:
+필수:
 
-```json
-[
-  { "name": "S3_BUCKET", "value": "YOUR_S3_BUCKET", "type": "PLAINTEXT" },
-  {
-    "name": "CLOUDFRONT_DISTRIBUTION_ID",
-    "value": "YOUR_DISTRIBUTION_ID",
-    "type": "PLAINTEXT"
-  }
-]
-```
+- `AWS_ROLE_TO_ASSUME` (GitHub OIDC로 Assume할 IAM Role ARN)
+- `AWS_REGION`
+- `S3_BUCKET`
 
-### 3) Lambda 실행 역할(IAM) 권한
+선택:
 
-Lambda 실행 역할에는 최소 아래 권한이 필요합니다.
+- `CLOUDFRONT_DISTRIBUTION_ID`
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "CodeBuildStart",
-      "Effect": "Allow",
-      "Action": ["codebuild:StartBuild"],
-      "Resource": "arn:aws:codebuild:AWS_REGION:AWS_ACCOUNT_ID:project/CODEBUILD_PROJECT_NAME"
-    },
-    {
-      "Sid": "CloudWatchLogs",
-      "Effect": "Allow",
-      "Action": ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-      "Resource": "*"
-    }
-  ]
-}
-```
+### AWS IAM 권한
 
-### 4) CodeBuild 프로젝트 설정
+#### 1) GitHub OIDC 신뢰 정책이 있는 IAM Role 생성
 
-CodeBuild 프로젝트 생성 시:
+`AWS_ROLE_TO_ASSUME`로 사용할 Role에 GitHub OIDC 신뢰 정책을 연결해야 합니다.
 
-1. 소스: GitHub 연결(또는 CodeCommit 등)
-2. Buildspec 경로: `buildspec.s3-deploy.yml`
-3. 환경변수:
-   - `S3_BUCKET` (필수)
-   - `CLOUDFRONT_DISTRIBUTION_ID` (선택)
-4. 런타임: Node.js 20 이상
-
-CodeBuild 서비스 역할에는 최소 아래 권한이 필요합니다.
+#### 2) 해당 Role 권한 정책
 
 ```json
 {
@@ -167,42 +124,10 @@ CodeBuild 서비스 역할에는 최소 아래 권한이 필요합니다.
 }
 ```
 
-### 5) EventBridge 크론 설정
+### 수동 배포
 
-EventBridge Scheduler 또는 EventBridge Rule에서 Lambda를 타겟으로 연결하세요.
+워크플로에는 `workflow_dispatch`가 포함되어 있어, GitHub Actions 탭에서 수동 실행도 가능합니다.
 
-- 매일 한국시간 오전 9시 배포 예시 (Scheduler + Timezone 사용):
-  - 스케줄: `cron(0 9 * * ? *)`
-  - Timezone: `Asia/Seoul`
-- Rule(cron)만 사용할 경우 UTC로 계산해서 입력하세요.
+### 참고
 
-필요하면 EventBridge에서 Lambda로 전달할 payload 예시:
-
-```json
-{
-  "sourceVersion": "main",
-  "environmentOverrides": [{ "name": "S3_BUCKET", "value": "YOUR_S3_BUCKET", "type": "PLAINTEXT" }]
-}
-```
-
-### 6) Lambda 로컬 테스트 이벤트 예시
-
-```json
-{
-  "sourceVersion": "main",
-  "environmentOverrides": [
-    { "name": "S3_BUCKET", "value": "YOUR_S3_BUCKET", "type": "PLAINTEXT" },
-    {
-      "name": "CLOUDFRONT_DISTRIBUTION_ID",
-      "value": "YOUR_DISTRIBUTION_ID",
-      "type": "PLAINTEXT"
-    }
-  ]
-}
-```
-
-### 7) 참고
-
-- Lambda 코드는 빌드를 직접 수행하지 않고 CodeBuild를 호출합니다.
-- 실제 S3 배포 로직은 `buildspec.s3-deploy.yml`에 있습니다.
 - HTML은 no-cache, 나머지 정적 파일은 장기 캐시로 업로드합니다.
