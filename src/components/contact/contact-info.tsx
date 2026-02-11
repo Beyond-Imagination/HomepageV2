@@ -107,17 +107,17 @@ export function ContactInfo() {
         >
           커뮤니티
         </h2>
-        <ul className="space-y-4">
+        <ul className="space-y-6">
           {socialLinks.map((item) => (
             <li key={item.label}>
               <a
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors group"
+                className="flex items-center gap-4 rounded-xl transition-colors group"
               >
-                <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-                  <item.icon className="w-5 h-5 text-primary-foreground" />
+                <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
+                  <item.icon className="w-5 h-5 text-accent" />
                 </div>
                 <div>
                   <p className="font-medium text-foreground group-hover:text-accent transition-colors">
@@ -132,11 +132,11 @@ export function ContactInfo() {
       </div>
 
       {/* FAQ Teaser */}
-      <div className="bg-primary text-primary-foreground rounded-2xl p-8">
+      <div className="bg-card border border-border rounded-2xl p-8">
         <h3 className="text-xl font-semibold mb-3" style={{ fontFamily: 'var(--font-heading)' }}>
           자주 묻는 질문
         </h3>
-        <p className="text-primary-foreground/80 text-sm leading-relaxed mb-4">
+        <p className="text-foreground/80 text-sm leading-relaxed mb-4">
           멤버십 가입, 참여 방법, 활동 내용 등에 대해 궁금하신 점이 있으시면 FAQ를 확인해보세요.
         </p>
         <ul className="space-y-2 text-sm">
@@ -147,9 +147,7 @@ export function ContactInfo() {
               onClick={() => setSelectedFaq(faq)}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-              <span className="text-primary-foreground/90 hover:text-primary-foreground">
-                {faq.question}
-              </span>
+              <span className="text-foreground/90 hover:text-foreground">{faq.question}</span>
             </li>
           ))}
         </ul>
@@ -160,7 +158,7 @@ export function ContactInfo() {
         <DialogContent className="max-w-2xl p-0 overflow-hidden">
           <div className="bg-linear-to-br from-accent/10 via-primary/5 to-transparent p-8 border-b border-border">
             <DialogHeader>
-              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
                 <MessageCircle className="w-6 h-6 text-accent" />
               </div>
               <DialogTitle
@@ -171,7 +169,7 @@ export function ContactInfo() {
               </DialogTitle>
             </DialogHeader>
           </div>
-          <div className="p-8">
+          <div className="p-8 pt-6">
             <DialogDescription className="text-base leading-relaxed text-foreground/80">
               {selectedFaq?.answer}
             </DialogDescription>
