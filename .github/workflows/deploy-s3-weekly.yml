@@ -1,6 +1,14 @@
 name: Deploy to S3 (Weekly)
 
 on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
   schedule:
     # Every Monday 00:00 KST (Sunday 15:00 UTC)
     - cron: '0 15 * * 0'
@@ -16,6 +24,7 @@ concurrency:
 
 jobs:
   deploy:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.merged == true }}
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
