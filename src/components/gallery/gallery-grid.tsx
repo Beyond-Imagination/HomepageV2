@@ -1,98 +1,91 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import generatedGalleryItems from '@/data/gallery.generated.json'
 
-interface GalleryItem {
+type GalleryItem = {
   id: number
   src: string
   alt: string
-  category: string
+  category?: string
+  categories?: string[]
   date: string
 }
 
-const categories = ['전체', '스터디', '해커톤', '네트워킹', '컨퍼런스']
+function getItemCategories(item: GalleryItem) {
+  if (Array.isArray(item.categories) && item.categories.length > 0) return item.categories
+  if (item.category?.trim()) return [item.category.trim()]
+  return ['기타']
+}
 
-const galleryItems: GalleryItem[] = [
-  {
-    id: 1,
-    src: '/images/gallery/study-01.jpg',
-    alt: '주간 스터디 세션',
-    category: '스터디',
-    date: '2024.12',
-  },
-  {
-    id: 2,
-    src: '/images/gallery/hackathon-01.jpg',
-    alt: '24시간 해커톤',
-    category: '해커톤',
-    date: '2024.11',
-  },
-  {
-    id: 3,
-    src: '/images/gallery/networking-01.jpg',
-    alt: '개발자 네트워킹 데이',
-    category: '네트워킹',
-    date: '2024.10',
-  },
-  {
-    id: 4,
-    src: '/images/gallery/conference-01.jpg',
-    alt: '기술 컨퍼런스 참가',
-    category: '컨퍼런스',
-    date: '2024.09',
-  },
-  {
-    id: 5,
-    src: '/images/gallery/study-02.jpg',
-    alt: '알고리즘 스터디',
-    category: '스터디',
-    date: '2024.08',
-  },
-  {
-    id: 6,
-    src: '/images/gallery/hackathon-02.jpg',
-    alt: '스타트업 해커톤 수상',
-    category: '해커톤',
-    date: '2024.07',
-  },
-  {
-    id: 7,
-    src: '/images/gallery/networking-02.jpg',
-    alt: '연말 파티',
-    category: '네트워킹',
-    date: '2024.06',
-  },
-  {
-    id: 8,
-    src: '/images/gallery/conference-02.jpg',
-    alt: 'AWS Summit 참가',
-    category: '컨퍼런스',
-    date: '2024.05',
-  },
-  {
-    id: 9,
-    src: '/images/gallery/study-03.jpg',
-    alt: '시스템 디자인 스터디',
-    category: '스터디',
-    date: '2024.04',
-  },
-]
+function resolveImageSrc(src?: string) {
+  if (!src) return '/placeholder.svg'
+
+  const trimmed = src.trim()
+  if (!trimmed) return '/placeholder.svg'
+  if (trimmed.startsWith('/')) return trimmed
+  if (trimmed.startsWith('images/')) return `/${trimmed}`
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed)
+      return `${url.pathname}${url.search}` || '/placeholder.svg'
+    } catch {
+      return trimmed
+    }
+  }
+
+  return trimmed
+}
+
+const notionGalleryItems = generatedGalleryItems as GalleryItem[]
+
+function parseDateToOrderValue(item: GalleryItem) {
+  const normalized = item.date?.trim().replace('.', '-') ?? ''
+  const parsed = normalized ? new Date(`${normalized}-01T00:00:00Z`).getTime() : Number.NaN
+  if (!Number.isNaN(parsed)) return parsed
+  return 0
+}
 
 function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void }) {
+  const cardRef = useRef<HTMLButtonElement | null>(null)
+  const [isVisible, setIsVisible] = useState(false)
   const [imageError, setImageError] = useState(false)
+
+  useEffect(() => {
+    const target = cardRef.current
+    if (!target || isVisible) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setIsVisible(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '300px 0px' }
+    )
+
+    observer.observe(target)
+    return () => observer.disconnect()
+  }, [isVisible])
 
   return (
     <button
+      ref={cardRef}
       type="button"
       onClick={onClick}
       className="group relative aspect-square overflow-hidden rounded-xl bg-secondary cursor-pointer"
+      style={{ contentVisibility: 'auto', containIntrinsicSize: '320px' }}
     >
-      {!imageError ? (
+      {isVisible && !imageError ? (
         <img
-          src={item.src || '/placeholder.svg'}
+          src={resolveImageSrc(item.src)}
           alt={item.alt}
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          loading="lazy"
+          decoding="async"
           onError={() => setImageError(true)}
         />
       ) : (
@@ -100,7 +93,7 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
           <span className="text-4xl font-bold text-primary/20">{item.id}</span>
         </div>
       )}
-      <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+      <div className="absolute inset-0 bg-linear-to-t from-primary/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
         <div className="absolute bottom-0 left-0 right-0 p-4 text-primary-foreground">
           <p className="font-medium text-sm mb-1">{item.alt}</p>
           <p className="text-xs text-primary-foreground/70">{item.date}</p>
@@ -175,7 +168,7 @@ function Lightbox({
       >
         {!imageError ? (
           <img
-            src={item.src || '/placeholder.svg'}
+            src={resolveImageSrc(item.src)}
             alt={item.alt}
             width={1200}
             height={800}
@@ -190,7 +183,7 @@ function Lightbox({
         <div className="mt-4 text-center text-primary-foreground">
           <p className="font-medium text-lg">{item.alt}</p>
           <p className="text-sm text-primary-foreground/70 mt-1">
-            {item.category} &middot; {item.date}
+            {getItemCategories(item).join(', ')} &middot; {item.date}
           </p>
         </div>
       </div>
@@ -202,10 +195,25 @@ export function GalleryGrid() {
   const [activeCategory, setActiveCategory] = useState('전체')
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
 
+  const galleryItems = useMemo(
+    () =>
+      [...notionGalleryItems].sort((a, b) => {
+        const dateDiff = parseDateToOrderValue(b) - parseDateToOrderValue(a)
+        if (dateDiff !== 0) return dateDiff
+        return b.id - a.id
+      }),
+    []
+  )
+
+  const categories = useMemo(
+    () => ['전체', ...new Set(galleryItems.flatMap((item) => getItemCategories(item)))],
+    [galleryItems]
+  )
+
   const filteredItems =
     activeCategory === '전체'
       ? galleryItems
-      : galleryItems.filter((item) => item.category === activeCategory)
+      : galleryItems.filter((item) => getItemCategories(item).includes(activeCategory))
 
   const selectedItem = selectedIndex !== null ? filteredItems[selectedIndex] : null
 

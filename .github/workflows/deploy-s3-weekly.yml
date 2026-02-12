@@ -30,7 +30,14 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       S3_BUCKET: ${{ secrets.S3_BUCKET }}
       CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+      NOTION_GALLERY_DATABASE_ID: ${{ secrets.NOTION_GALLERY_DATABASE_ID }}
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
+      - name: Start timer
+        id: start_timer
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -51,23 +58,91 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Install dependencies
+        id: install_dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Sync gallery from Notion
+        id: sync_gallery
+        run: pnpm sync:gallery
+
+      - name: Upload fetched Notion images
+        id: upload_gallery_images
+        run: |
+          if [ -d "public/images/gallery" ]; then
+            aws s3 sync public/images/gallery "s3://$S3_BUCKET/images/gallery" --cache-control "public,max-age=31536000,immutable"
+          fi
+
       - name: Build
+        id: build
         run: pnpm build
 
       - name: Deploy static assets (long cache)
+        id: deploy_static_assets
         run: |
           test -n "$S3_BUCKET"
-          aws s3 sync dist "s3://$S3_BUCKET" --delete --exclude "*.html" --cache-control "public,max-age=31536000,immutable"
+          aws s3 sync dist "s3://$S3_BUCKET" --delete --exclude "*.html" --exclude "images/gallery/*" --cache-control "public,max-age=31536000,immutable"
 
       - name: Deploy HTML (no cache)
+        id: deploy_html
         run: |
           aws s3 sync dist "s3://$S3_BUCKET" --delete --exclude "*" --include "*.html" --cache-control "no-cache,no-store,must-revalidate"
 
       - name: Invalidate CloudFront
+        id: invalidate_cloudfront
         if: ${{ env.CLOUDFRONT_DISTRIBUTION_ID != '' }}
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
             --paths "/*"
+
+      - name: Notify deploy result to Discord
+        if: ${{ always() }}
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          START_EPOCH: ${{ steps.start_timer.outputs.epoch }}
+          OUTCOME_SYNC_GALLERY: ${{ steps.sync_gallery.outcome }}
+          OUTCOME_UPLOAD_GALLERY_IMAGES: ${{ steps.upload_gallery_images.outcome }}
+          OUTCOME_BUILD: ${{ steps.build.outcome }}
+          OUTCOME_DEPLOY_STATIC_ASSETS: ${{ steps.deploy_static_assets.outcome }}
+          OUTCOME_DEPLOY_HTML: ${{ steps.deploy_html.outcome }}
+          OUTCOME_INVALIDATE_CLOUDFRONT: ${{ steps.invalidate_cloudfront.outcome }}
+        run: |
+          if [ -z "$DISCORD_WEBHOOK_URL" ]; then
+            echo "DISCORD_WEBHOOK_URL is empty. Skipping Discord notification."
+            exit 0
+          fi
+
+          now_epoch="$(date +%s)"
+          elapsed="$((now_epoch - START_EPOCH))"
+          hours="$((elapsed / 3600))"
+          minutes="$(((elapsed % 3600) / 60))"
+          seconds="$((elapsed % 60))"
+          duration="$(printf '%02d:%02d:%02d' "$hours" "$minutes" "$seconds")"
+
+          failed_steps=()
+          [ "$OUTCOME_SYNC_GALLERY" = "failure" ] && failed_steps+=("Sync gallery from Notion")
+          [ "$OUTCOME_UPLOAD_GALLERY_IMAGES" = "failure" ] && failed_steps+=("Upload fetched Notion images")
+          [ "$OUTCOME_BUILD" = "failure" ] && failed_steps+=("Build")
+          [ "$OUTCOME_DEPLOY_STATIC_ASSETS" = "failure" ] && failed_steps+=("Deploy static assets")
+          [ "$OUTCOME_DEPLOY_HTML" = "failure" ] && failed_steps+=("Deploy HTML")
+          [ "$OUTCOME_INVALIDATE_CLOUDFRONT" = "failure" ] && failed_steps+=("Invalidate CloudFront")
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            result_line="결과: 성공"
+            failed_line="실패 단계: 없음"
+          else
+            result_line="결과: 실패"
+            if [ "${#failed_steps[@]}" -gt 0 ]; then
+              failed_line="실패 단계: ${failed_steps[*]}"
+            else
+              failed_line="실패 단계: 알 수 없음(로그 확인 필요)"
+            fi
+          fi
+
+          message="$(printf '[배포] HomepageV2\n%s\n소요 시간: %s\n%s\n실행 링크: %s' "$result_line" "$duration" "$failed_line" "$RUN_URL")"
+
+          payload="$(jq -n --arg content "$message" '{content: $content}')"
+          curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "$payload" > /dev/null || echo "Failed to send Discord notification"

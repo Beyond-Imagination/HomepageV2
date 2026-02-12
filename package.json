@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sync:gallery": "node --experimental-strip-types scripts/sync-notion-gallery.ts",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
