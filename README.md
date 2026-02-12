@@ -53,3 +53,81 @@ eslint . --fix
 # ✅ pnpm을 통해 실행하세요
 pnpm lint:fix
 ```
+
+## GitHub Actions 주간 배포 (S3 + 선택적 CloudFront)
+
+이 저장소에서 자동 배포에 사용하는 파일:
+
+- 워크플로: `.github/workflows/deploy-s3-weekly.yml`
+
+배포 흐름:
+
+1. GitHub Actions 스케줄 실행
+2. 프런트 빌드 (`pnpm build`)
+3. S3 동기화
+4. (선택) CloudFront 무효화
+
+### 스케줄
+
+워크플로는 아래 스케줄로 설정되어 있습니다.
+
+- 한국시간 매주 월요일 00:00 (KST)
+- GitHub cron(UTC): `0 15 * * 0`
+
+참고: GitHub Actions cron은 UTC 기준입니다.
+
+### GitHub Secrets 설정
+
+리포지토리 `Settings > Secrets and variables > Actions`에 아래 시크릿을 추가하세요.
+
+필수:
+
+- `AWS_ROLE_TO_ASSUME` (GitHub OIDC로 Assume할 IAM Role ARN)
+- `AWS_REGION`
+- `S3_BUCKET`
+
+선택:
+
+- `CLOUDFRONT_DISTRIBUTION_ID`
+
+### AWS IAM 권한
+
+#### 1) GitHub OIDC 신뢰 정책이 있는 IAM Role 생성
+
+`AWS_ROLE_TO_ASSUME`로 사용할 Role에 GitHub OIDC 신뢰 정책을 연결해야 합니다.
+
+#### 2) 해당 Role 권한 정책
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3Deploy",
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::YOUR_S3_BUCKET"
+    },
+    {
+      "Sid": "S3ObjectsDeploy",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:DeleteObject", "s3:GetObject"],
+      "Resource": "arn:aws:s3:::YOUR_S3_BUCKET/*"
+    },
+    {
+      "Sid": "CloudFrontInvalidate",
+      "Effect": "Allow",
+      "Action": ["cloudfront:CreateInvalidation"],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### 수동 배포
+
+워크플로에는 `workflow_dispatch`가 포함되어 있어, GitHub Actions 탭에서 수동 실행도 가능합니다.
+
+### 참고
+
+- HTML은 no-cache, 나머지 정적 파일은 장기 캐시로 업로드합니다.
