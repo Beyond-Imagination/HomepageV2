@@ -7,6 +7,7 @@ import generatedGalleryItems from '@/data/gallery.generated.json'
 type GalleryItem = {
   id: number
   src: string
+  thumbnailSrc: string
   alt: string
   category?: string
   categories?: string[]
@@ -42,8 +43,19 @@ function resolveImageSrc(src?: string) {
 const notionGalleryItems = generatedGalleryItems as GalleryItem[]
 
 function parseDateToOrderValue(item: GalleryItem) {
-  const normalized = item.date?.trim().replace('.', '-') ?? ''
-  const parsed = normalized ? new Date(`${normalized}-01T00:00:00Z`).getTime() : Number.NaN
+  const raw = item.date?.trim() ?? ''
+  const match = raw.match(/^(\d{4})\.(\d{2})\.(\d{2})$/)
+  if (match) {
+    const year = Number(match[1])
+    const month = Number(match[2])
+    const day = Number(match[3])
+    if (!Number.isNaN(year) && !Number.isNaN(month) && !Number.isNaN(day)) {
+      return Date.UTC(year, month - 1, day)
+    }
+  }
+
+  const normalized = raw.replaceAll('.', '-')
+  const parsed = normalized ? new Date(`${normalized}T00:00:00Z`).getTime() : Number.NaN
   if (!Number.isNaN(parsed)) return parsed
   return 0
 }
@@ -81,7 +93,7 @@ function GalleryCard({ item, onClick }: { item: GalleryItem; onClick: () => void
     >
       {isVisible && !imageError ? (
         <img
-          src={resolveImageSrc(item.src)}
+          src={resolveImageSrc(item.thumbnailSrc)}
           alt={item.alt}
           className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           loading="lazy"

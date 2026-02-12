@@ -1,11 +1,16 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { dirname, extname, join } from 'node:path'
 
 const NOTION_BASE_URL = 'https://api.notion.com/v1'
 const NOTION_VERSION = '2022-06-28'
 const OUTPUT_JSON_PATH = 'src/data/gallery.generated.json'
-const OUTPUT_IMAGE_DIR = 'public/images/gallery'
-const OUTPUT_IMAGE_PUBLIC_BASE_PATH = '/images/gallery'
+const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/gallery/original'
+const OUTPUT_IMAGE_THUMB_DIR = 'public/images/gallery/thumb'
+const OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH = '/images/gallery/original'
+const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/gallery/thumb'
+const THUMB_WIDTH = 640
+const THUMB_QUALITY = 72
 
 const notionToken = process.env.NOTION_TOKEN
 const notionDatabaseId = process.env.NOTION_GALLERY_DATABASE_ID
@@ -47,6 +52,7 @@ type NotionQueryResponse = {
 type GalleryItem = {
   id: number
   src: string
+  thumbnailSrc: string
   alt: string
   categories: string[]
   date: string
@@ -58,7 +64,8 @@ function toDisplayDate(value?: string) {
   if (Number.isNaN(date.getTime())) return ''
   const year = date.getUTCFullYear()
   const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  return `${year}.${month}`
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}.${month}.${day}`
 }
 
 function pickPageTitle(page: NotionPage) {
@@ -266,6 +273,55 @@ async function downloadImage(url: string) {
   }
 }
 
+function createThumbnail(originalPath: string, thumbPath: string) {
+  const commands: Array<{ command: string; args: string[] }> = [
+    {
+      command: 'magick',
+      args: [
+        originalPath,
+        '-auto-orient',
+        '-resize',
+        `${THUMB_WIDTH}>`,
+        '-quality',
+        String(THUMB_QUALITY),
+        thumbPath,
+      ],
+    },
+    {
+      command: 'convert',
+      args: [
+        originalPath,
+        '-auto-orient',
+        '-resize',
+        `${THUMB_WIDTH}>`,
+        '-quality',
+        String(THUMB_QUALITY),
+        thumbPath,
+      ],
+    },
+  ]
+
+  for (const { command, args } of commands) {
+    const result = spawnSync(command, args, { stdio: 'ignore' })
+    if (!result.error && result.status === 0) {
+      return true
+    }
+  }
+
+  return false
+}
+
+function inferThumbnailLinkFromOriginal(originalLink: string, pageId: string) {
+  const normalized = originalLink.trim()
+  if (!normalized) return null
+
+  if (normalized.includes(`/images/gallery/original/${pageId}`)) {
+    return `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${pageId}-thumb.webp`
+  }
+
+  return null
+}
+
 async function run() {
   if (!notionToken || !notionDatabaseId) {
     throw new Error('NOTION_TOKEN/NOTION_GALLERY_DATABASE_ID missing.')
@@ -275,8 +331,10 @@ async function run() {
   const pages = await fetchDatabasePages()
   pages.sort((a, b) => pickSortableTimestamp(b) - pickSortableTimestamp(a))
 
-  rmSync(OUTPUT_IMAGE_DIR, { recursive: true, force: true })
-  mkdirSync(OUTPUT_IMAGE_DIR, { recursive: true })
+  rmSync(OUTPUT_IMAGE_ORIGINAL_DIR, { recursive: true, force: true })
+  rmSync(OUTPUT_IMAGE_THUMB_DIR, { recursive: true, force: true })
+  mkdirSync(OUTPUT_IMAGE_ORIGINAL_DIR, { recursive: true })
+  mkdirSync(OUTPUT_IMAGE_THUMB_DIR, { recursive: true })
 
   const items: GalleryItem[] = []
   let index = 1
@@ -292,6 +350,7 @@ async function run() {
       items.push({
         id: index,
         src: savedS3Link,
+        thumbnailSrc: inferThumbnailLinkFromOriginal(savedS3Link, page.id) ?? savedS3Link,
         alt: title,
         categories,
         date,
@@ -309,17 +368,28 @@ async function run() {
     try {
       const { contentType, data } = await downloadImage(imageUrl)
       const extension = guessExtension(imageUrl, contentType)
-      const filename = `${page.id}${extension}`
-      const finalPath = join(OUTPUT_IMAGE_DIR, filename)
-      const s3Link = `${OUTPUT_IMAGE_PUBLIC_BASE_PATH}/${filename}`
+      const originalFilename = `${page.id}${extension}`
+      const thumbFilename = `${page.id}-thumb.webp`
+      const originalPath = join(OUTPUT_IMAGE_ORIGINAL_DIR, originalFilename)
+      const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
+      const originalS3Link = `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${originalFilename}`
+      const thumbS3Link = `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${thumbFilename}`
 
-      rmSync(finalPath, { force: true })
-      writeFileSync(finalPath, data)
-      await updatePageS3Link(page, s3Link)
+      rmSync(originalPath, { force: true })
+      rmSync(thumbPath, { force: true })
+      writeFileSync(originalPath, data)
+      const thumbCreated = createThumbnail(originalPath, thumbPath)
+
+      if (!thumbCreated) {
+        throw new Error('Thumbnail generation failed. Install ImageMagick (magick/convert).')
+      }
+
+      await updatePageS3Link(page, originalS3Link)
 
       items.push({
         id: index,
-        src: s3Link,
+        src: originalS3Link,
+        thumbnailSrc: thumbS3Link,
         alt: title,
         categories,
         date,

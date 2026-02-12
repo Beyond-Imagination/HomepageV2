@@ -63,7 +63,7 @@ pnpm lint:fix
 배포 흐름:
 
 1. GitHub Actions 스케줄 실행
-2. Notion 갤러리 동기화 (`pnpm sync:gallery`)
+2. Notion 갤러리 동기화 + 썸네일 생성 (`pnpm sync:gallery`)
 3. 프런트 빌드 (`pnpm build`)
 4. S3 동기화
 5. (선택) CloudFront 무효화
@@ -136,7 +136,8 @@ pnpm lint:fix
 
 - HTML은 no-cache, 나머지 정적 파일은 장기 캐시로 업로드합니다.
 - Notion DB는 페이지네이션으로 전체 페이지를 모두 조회합니다(제한 없음).
-- `S3 link` 속성에는 `/images/gallery/...` 형태의 상대 경로를 저장해 사용합니다.
+- `S3 link` 속성에는 원본 경로(`/images/gallery/original/...`)를 저장해 사용합니다.
 - `S3 link`가 비어있으면 Notion 이미지를 내려받아 배포 대상에 포함하고, `S3 link`에 상대 경로를 기록합니다.
-- 새로 내려받은 Notion 이미지는 빌드 전에 S3에 먼저 업로드됩니다.
+- 썸네일은 `/images/gallery/notion/thumb/...` 경로로 생성되며, 목록에서는 썸네일을 사용하고 클릭 시 원본을 불러옵니다.
+- 기존 `images/gallery` 경로의 파일은 배포 시 `--delete` 대상에서 제외해 유지됩니다.
 - 워크플로 종료 시 Discord 웹훅으로 배포 결과(성공/실패), 실패 단계, 총 소요 시간을 1회 요약 전송합니다.
