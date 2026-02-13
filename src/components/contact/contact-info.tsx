@@ -1,4 +1,4 @@
-import { Mail, MapPin, Clock, Github, MessageCircle } from 'lucide-react'
+import { Mail, MapPin, Clock, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import {
   Dialog,
@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { GitHubIcon } from '@/components/icons/github-icon'
 
 const contactDetails = [
   {
@@ -31,7 +32,7 @@ const contactDetails = [
 
 const socialLinks = [
   {
-    icon: Github,
+    icon: GitHubIcon,
     label: 'GitHub',
     value: 'github.com/beyond-imagination',
     href: 'https://github.com',
@@ -107,16 +108,16 @@ export function ContactInfo() {
         >
           커뮤니티
         </h2>
-        <ul className="space-y-4">
+        <ul className="space-y-6">
           {socialLinks.map((item) => (
             <li key={item.label}>
               <a
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-4 p-4 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors group"
+                className="flex items-center gap-4 rounded-xl transition-colors group"
               >
-                <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shrink-0">
                   <item.icon className="w-5 h-5 text-primary-foreground" />
                 </div>
                 <div>
@@ -147,9 +148,7 @@ export function ContactInfo() {
               onClick={() => setSelectedFaq(faq)}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-              <span className="text-primary-foreground/90 hover:text-primary-foreground">
-                {faq.question}
-              </span>
+              <span className="text-primary-foreground/90 hover:text-primary-foreground">{faq.question}</span>
             </li>
           ))}
         </ul>
@@ -160,7 +159,7 @@ export function ContactInfo() {
         <DialogContent className="max-w-2xl p-0 overflow-hidden">
           <div className="bg-linear-to-br from-accent/10 via-primary/5 to-transparent p-8 border-b border-border">
             <DialogHeader>
-              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
                 <MessageCircle className="w-6 h-6 text-accent" />
               </div>
               <DialogTitle
@@ -171,7 +170,7 @@ export function ContactInfo() {
               </DialogTitle>
             </DialogHeader>
           </div>
-          <div className="p-8">
+          <div className="p-8 pt-6">
             <DialogDescription className="text-base leading-relaxed text-foreground/80">
               {selectedFaq?.answer}
             </DialogDescription>

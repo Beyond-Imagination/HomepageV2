@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ExternalLink, Github, Calendar } from 'lucide-react'
+import { ExternalLink, Calendar } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { GitHubIcon } from '@/components/icons/github-icon'
 
 type ProjectStatus = 'all' | 'in-progress' | 'completed'
 
@@ -216,7 +217,7 @@ export function ProjectsGrid() {
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 text-sm text-muted-foreground hover:text-accent transition-colors"
                       >
-                        <Github className="w-4 h-4" />
+                        <GitHubIcon className="w-4 h-4" />
                         <span>Code</span>
                       </a>
                     )}
