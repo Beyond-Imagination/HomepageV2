@@ -2,6 +2,38 @@
 
 ## 개발 환경 설정
 
+### 필수 의존성 설치
+
+#### ImageMagick
+
+썸네일 생성을 위해 ImageMagick이 필요합니다. `sync:gallery` 스크립트를 로컬에서 실행하려면 먼저 설치해야 합니다.
+
+**macOS (Homebrew):**
+
+```bash
+brew install imagemagick
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get update
+sudo apt-get install imagemagick
+```
+
+**Windows:**
+
+- [ImageMagick 공식 다운로드 페이지](https://imagemagick.org/script/download.php)에서 설치 프로그램 다운로드
+- 설치 시 "Install legacy utilities (e.g. convert)" 옵션 체크
+
+설치 확인:
+
+```bash
+magick --version
+# 또는
+convert --version
+```
+
 ### 코드 포맷팅 및 린팅
 
 이 프로젝트는 코드 품질을 유지하기 위해 다음 도구들을 사용합니다:
@@ -63,9 +95,12 @@ pnpm lint:fix
 배포 흐름:
 
 1. GitHub Actions 스케줄 실행
-2. 프런트 빌드 (`pnpm build`)
-3. S3 동기화
-4. (선택) CloudFront 무효화
+2. Notion 갤러리 동기화 + 썸네일 생성 (`pnpm sync:gallery`)
+3. S3 이미지 업로드
+4. Notion `S3 link` 반영 (`pnpm sync:gallery:apply-links`)
+5. 프런트 빌드 (`pnpm build`)
+6. 정적 파일/HTML 배포
+7. (선택) CloudFront 무효화
 
 ### 스케줄
 
@@ -85,6 +120,9 @@ pnpm lint:fix
 - `AWS_ROLE_TO_ASSUME` (GitHub OIDC로 Assume할 IAM Role ARN)
 - `AWS_REGION`
 - `S3_BUCKET`
+- `NOTION_TOKEN`
+- `NOTION_GALLERY_DATABASE_ID`
+- `DISCORD_WEBHOOK_URL` (배포 완료 시 결과/소요시간 요약 알림용)
 
 선택:
 
@@ -131,3 +169,12 @@ pnpm lint:fix
 ### 참고
 
 - HTML은 no-cache, 나머지 정적 파일은 장기 캐시로 업로드합니다.
+- Notion DB는 페이지네이션으로 전체 페이지를 모두 조회합니다(제한 없음).
+- `S3 link` 속성에는 원본 경로(`/images/gallery/original/...`)를 저장해 사용합니다.
+- `S3 link`가 비어있으면 Notion 이미지를 내려받아 배포 대상에 포함하고, `S3 link`에 상대 경로를 기록합니다.
+- 썸네일은 `/images/gallery/thumb/...` 경로로 생성되며, 목록에서는 썸네일을 사용하고 클릭 시 원본을 불러옵니다.
+- 기존 `images/gallery` 경로의 파일은 배포 시 `--delete` 대상에서 제외해 유지됩니다.
+- 워크플로 종료 시 Discord 웹훅으로 배포 결과(성공/실패), 실패 단계, 총 소요 시간을 1회 요약 전송합니다.
+- **병렬 처리**: `p-limit` 라이브러리를 사용하여 최대 5개의 이미지를 동시에 처리합니다. Notion API의 rate limit를 고려하여 동시 처리 수를 제한하였으며, `CONCURRENT_LIMIT` 상수로 조정할 수 있습니다.
+- **Notion API 재시도**: 최대 3회 재시도합니다. `429`는 `Retry-After` 헤더 값을 우선 사용하고(없거나 파싱 실패 시 0.5초 fallback), `5xx`/네트워크 오류는 0.5초 대기 후 재시도합니다.
+- **정합성 보장**: Notion `S3 link` 업데이트는 S3 업로드가 성공한 뒤에만 실행되므로, 링크만 먼저 반영되는 불일치를 방지합니다.

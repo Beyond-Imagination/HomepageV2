@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sync:gallery": "node --experimental-strip-types scripts/sync-notion-gallery.ts",
+    "sync:gallery:apply-links": "node --experimental-strip-types scripts/apply-notion-gallery-links.ts",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -83,6 +85,7 @@
     "globals": "^17.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
+    "p-limit": "^7.3.0",
     "postcss": "^8.5",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.9",
