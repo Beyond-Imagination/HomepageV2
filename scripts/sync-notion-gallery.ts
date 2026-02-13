@@ -13,6 +13,8 @@ const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/gallery/thumb'
 const THUMB_WIDTH = 640
 const THUMB_QUALITY = 72
 const CONCURRENT_LIMIT = 5 // Notion API rate limit 고려하여 동시 처리 제한
+const NOTION_API_MAX_RETRIES = 3
+const NOTION_API_RETRY_DELAY_MS = 500
 
 const notionToken = process.env.NOTION_TOKEN
 const notionDatabaseId = process.env.NOTION_GALLERY_DATABASE_ID
@@ -58,6 +60,39 @@ type GalleryItem = {
   alt: string
   categories: string[]
   date: string
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms)
+  })
+}
+
+function parseRetryAfterMs(retryAfter: string | null) {
+  if (!retryAfter) return null
+  const seconds = Number(retryAfter)
+  if (!Number.isNaN(seconds) && seconds >= 0) {
+    return Math.ceil(seconds * 1000)
+  }
+
+  const dateMs = new Date(retryAfter).getTime()
+  if (Number.isNaN(dateMs)) return null
+  const diffMs = dateMs - Date.now()
+  return diffMs > 0 ? diffMs : 0
+}
+
+function getRetryDelayMs(status: number, retryAfterHeader: string | null) {
+  if (status === 429) {
+    const retryAfterMs = parseRetryAfterMs(retryAfterHeader)
+    if (retryAfterMs !== null) return retryAfterMs
+
+    console.warn(
+      '[sync-notion-gallery] 429 received without a valid Retry-After header. Falling back to default backoff.'
+    )
+    return NOTION_API_RETRY_DELAY_MS
+  }
+
+  return NOTION_API_RETRY_DELAY_MS
 }
 
 function toDisplayDate(value?: string) {
@@ -177,39 +212,91 @@ function guessExtension(url: string, contentType: string | null) {
 }
 
 async function notionRequest(path: string, body: Record<string, unknown>) {
-  const response = await fetch(`${NOTION_BASE_URL}${path}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${notionToken}`,
-      'Notion-Version': NOTION_VERSION,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
+  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await fetch(`${NOTION_BASE_URL}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${notionToken}`,
+          'Notion-Version': NOTION_VERSION,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      })
 
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Notion API request failed: ${response.status} ${text}`)
+      if (response.ok) {
+        return (await response.json()) as NotionQueryResponse
+      }
+
+      const responseText = await response.text()
+      const isRetryable = response.status === 429 || response.status >= 500
+      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
+        throw new Error(`Notion API request failed: ${response.status} ${responseText}`)
+      }
+
+      const retryAfterMs = getRetryDelayMs(response.status, response.headers.get('retry-after'))
+      console.warn(
+        `[sync-notion-gallery] Notion request retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
+      )
+      await sleep(retryAfterMs)
+    } catch (error) {
+      if (attempt === NOTION_API_MAX_RETRIES) {
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(`Notion API request failed after retries: ${message}`)
+      }
+
+      console.warn(
+        `[sync-notion-gallery] Notion request network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
+      )
+      await sleep(NOTION_API_RETRY_DELAY_MS)
+    }
   }
 
-  return (await response.json()) as NotionQueryResponse
+  throw new Error('Notion API request failed: retry loop terminated unexpectedly')
 }
 
 async function notionUpdatePage(pageId: string, payload: Record<string, unknown>) {
-  const response = await fetch(`${NOTION_BASE_URL}/pages/${pageId}`, {
-    method: 'PATCH',
-    headers: {
-      Authorization: `Bearer ${notionToken}`,
-      'Notion-Version': NOTION_VERSION,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
+  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await fetch(`${NOTION_BASE_URL}/pages/${pageId}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${notionToken}`,
+          'Notion-Version': NOTION_VERSION,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
 
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Notion page update failed: ${response.status} ${text}`)
+      if (response.ok) {
+        return
+      }
+
+      const responseText = await response.text()
+      const isRetryable = response.status === 429 || response.status >= 500
+      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
+        throw new Error(`Notion page update failed: ${response.status} ${responseText}`)
+      }
+
+      const retryAfterMs = getRetryDelayMs(response.status, response.headers.get('retry-after'))
+      console.warn(
+        `[sync-notion-gallery] Notion update retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
+      )
+      await sleep(retryAfterMs)
+    } catch (error) {
+      if (attempt === NOTION_API_MAX_RETRIES) {
+        const message = error instanceof Error ? error.message : String(error)
+        throw new Error(`Notion page update failed after retries: ${message}`)
+      }
+
+      console.warn(
+        `[sync-notion-gallery] Notion update network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
+      )
+      await sleep(NOTION_API_RETRY_DELAY_MS)
+    }
   }
+
+  throw new Error('Notion page update failed: retry loop terminated unexpectedly')
 }
 
 async function updatePageS3Link(page: NotionPage, link: string) {

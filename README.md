@@ -172,5 +172,7 @@ pnpm lint:fix
 - `S3 link`가 비어있으면 Notion 이미지를 내려받아 배포 대상에 포함하고, `S3 link`에 상대 경로를 기록합니다.
 - 썸네일은 `/images/gallery/thumb/...` 경로로 생성되며, 목록에서는 썸네일을 사용하고 클릭 시 원본을 불러옵니다.
 - 기존 `images/gallery` 경로의 파일은 배포 시 `--delete` 대상에서 제외해 유지됩니다.
+- 매 실행마다 `src/data/gallery.generated.json`이 Actions Artifact로 업로드되어 Action 탭에서 다운로드해 검증할 수 있습니다.
 - 워크플로 종료 시 Discord 웹훅으로 배포 결과(성공/실패), 실패 단계, 총 소요 시간을 1회 요약 전송합니다.
 - **병렬 처리**: `p-limit` 라이브러리를 사용하여 최대 5개의 이미지를 동시에 처리합니다. Notion API의 rate limit를 고려하여 동시 처리 수를 제한하였으며, `CONCURRENT_LIMIT` 상수로 조정할 수 있습니다.
+- **Notion API 재시도**: 최대 3회 재시도합니다. `429`는 `Retry-After` 헤더 값을 우선 사용하고(없거나 파싱 실패 시 0.5초 fallback), `5xx`/네트워크 오류는 0.5초 대기 후 재시도합니다.

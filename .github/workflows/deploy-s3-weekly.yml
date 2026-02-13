@@ -108,6 +108,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           START_EPOCH: ${{ steps.start_timer.outputs.epoch }}
           OUTCOME_SYNC_GALLERY: ${{ steps.sync_gallery.outcome }}
+          OUTCOME_UPLOAD_GALLERY_JSON_ARTIFACT: ${{ steps.upload_gallery_json_artifact.outcome }}
           OUTCOME_INSTALL_IMAGEMAGICK: ${{ steps.install_imagemagick.outcome }}
           OUTCOME_UPLOAD_GALLERY_IMAGES: ${{ steps.upload_gallery_images.outcome }}
           OUTCOME_BUILD: ${{ steps.build.outcome }}
@@ -130,6 +131,7 @@ jobs:
           failed_steps=()
           [ "$OUTCOME_INSTALL_IMAGEMAGICK" = "failure" ] && failed_steps+=("Install ImageMagick")
           [ "$OUTCOME_SYNC_GALLERY" = "failure" ] && failed_steps+=("Sync gallery from Notion")
+          [ "$OUTCOME_UPLOAD_GALLERY_JSON_ARTIFACT" = "failure" ] && failed_steps+=("Upload gallery generated JSON artifact")
           [ "$OUTCOME_UPLOAD_GALLERY_IMAGES" = "failure" ] && failed_steps+=("Upload fetched Notion images")
           [ "$OUTCOME_BUILD" = "failure" ] && failed_steps+=("Build")
           [ "$OUTCOME_DEPLOY_STATIC_ASSETS" = "failure" ] && failed_steps+=("Deploy static assets")
