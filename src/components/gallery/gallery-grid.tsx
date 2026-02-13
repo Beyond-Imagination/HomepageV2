@@ -28,15 +28,6 @@ function resolveImageSrc(src?: string) {
   if (trimmed.startsWith('/')) return trimmed
   if (trimmed.startsWith('images/')) return `/${trimmed}`
 
-  if (/^https?:\/\//i.test(trimmed)) {
-    try {
-      const url = new URL(trimmed)
-      return `${url.pathname}${url.search}` || '/placeholder.svg'
-    } catch {
-      return trimmed
-    }
-  }
-
   return trimmed
 }
 

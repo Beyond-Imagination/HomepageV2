@@ -2,6 +2,38 @@
 
 ## 개발 환경 설정
 
+### 필수 의존성 설치
+
+#### ImageMagick
+
+썸네일 생성을 위해 ImageMagick이 필요합니다. `sync:gallery` 스크립트를 로컬에서 실행하려면 먼저 설치해야 합니다.
+
+**macOS (Homebrew):**
+
+```bash
+brew install imagemagick
+```
+
+**Ubuntu/Debian:**
+
+```bash
+sudo apt-get update
+sudo apt-get install imagemagick
+```
+
+**Windows:**
+
+- [ImageMagick 공식 다운로드 페이지](https://imagemagick.org/script/download.php)에서 설치 프로그램 다운로드
+- 설치 시 "Install legacy utilities (e.g. convert)" 옵션 체크
+
+설치 확인:
+
+```bash
+magick --version
+# 또는
+convert --version
+```
+
 ### 코드 포맷팅 및 린팅
 
 이 프로젝트는 코드 품질을 유지하기 위해 다음 도구들을 사용합니다:
@@ -138,6 +170,7 @@ pnpm lint:fix
 - Notion DB는 페이지네이션으로 전체 페이지를 모두 조회합니다(제한 없음).
 - `S3 link` 속성에는 원본 경로(`/images/gallery/original/...`)를 저장해 사용합니다.
 - `S3 link`가 비어있으면 Notion 이미지를 내려받아 배포 대상에 포함하고, `S3 link`에 상대 경로를 기록합니다.
-- 썸네일은 `/images/gallery/notion/thumb/...` 경로로 생성되며, 목록에서는 썸네일을 사용하고 클릭 시 원본을 불러옵니다.
+- 썸네일은 `/images/gallery/thumb/...` 경로로 생성되며, 목록에서는 썸네일을 사용하고 클릭 시 원본을 불러옵니다.
 - 기존 `images/gallery` 경로의 파일은 배포 시 `--delete` 대상에서 제외해 유지됩니다.
 - 워크플로 종료 시 Discord 웹훅으로 배포 결과(성공/실패), 실패 단계, 총 소요 시간을 1회 요약 전송합니다.
+- **병렬 처리**: `p-limit` 라이브러리를 사용하여 최대 5개의 이미지를 동시에 처리합니다. Notion API의 rate limit를 고려하여 동시 처리 수를 제한하였으며, `CONCURRENT_LIMIT` 상수로 조정할 수 있습니다.

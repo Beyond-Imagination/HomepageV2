@@ -1,6 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { dirname, extname, join } from 'node:path'
+import pLimit from 'p-limit'
 
 const NOTION_BASE_URL = 'https://api.notion.com/v1'
 const NOTION_VERSION = '2022-06-28'
@@ -11,6 +12,7 @@ const OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH = '/images/gallery/original'
 const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/gallery/thumb'
 const THUMB_WIDTH = 640
 const THUMB_QUALITY = 72
+const CONCURRENT_LIMIT = 5 // Notion API rate limit 고려하여 동시 처리 제한
 
 const notionToken = process.env.NOTION_TOKEN
 const notionDatabaseId = process.env.NOTION_GALLERY_DATABASE_ID
@@ -322,6 +324,76 @@ function inferThumbnailLinkFromOriginal(originalLink: string, pageId: string) {
   return null
 }
 
+async function processPage(
+  page: NotionPage,
+  index: number
+): Promise<{ item: GalleryItem | null; error: string | null }> {
+  const categories = pickCategories(page)
+  const date = pickDate(page)
+  const title = pickPageTitle(page)
+
+  const savedS3Link = pickS3Link(page)
+  if (savedS3Link) {
+    return {
+      item: {
+        id: index,
+        src: savedS3Link,
+        thumbnailSrc: inferThumbnailLinkFromOriginal(savedS3Link, page.id) ?? savedS3Link,
+        alt: title,
+        categories,
+        date,
+      },
+      error: null,
+    }
+  }
+
+  const imageUrl = pickImageUrl(page)
+  if (!imageUrl) {
+    return {
+      item: null,
+      error: `Page ${page.id}: image URL not found`,
+    }
+  }
+
+  try {
+    const { contentType, data } = await downloadImage(imageUrl)
+    const extension = guessExtension(imageUrl, contentType)
+    const originalFilename = `${page.id}${extension}`
+    const thumbFilename = `${page.id}-thumb.webp`
+    const originalPath = join(OUTPUT_IMAGE_ORIGINAL_DIR, originalFilename)
+    const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
+    const originalS3Link = `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${originalFilename}`
+    const thumbS3Link = `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${thumbFilename}`
+
+    writeFileSync(originalPath, data)
+    const thumbCreated = createThumbnail(originalPath, thumbPath)
+
+    if (!thumbCreated) {
+      throw new Error('Thumbnail generation failed. Install ImageMagick (magick/convert).')
+    }
+
+    await updatePageS3Link(page, originalS3Link)
+
+    return {
+      item: {
+        id: index,
+        src: originalS3Link,
+        thumbnailSrc: thumbS3Link,
+        alt: title,
+        categories,
+        date,
+      },
+      error: null,
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return {
+      item: null,
+      error: `Page ${page.id}: ${message}`,
+    }
+  }
+}
+
 async function run() {
   if (!notionToken || !notionDatabaseId) {
     throw new Error('NOTION_TOKEN/NOTION_GALLERY_DATABASE_ID missing.')
@@ -336,68 +408,24 @@ async function run() {
   mkdirSync(OUTPUT_IMAGE_ORIGINAL_DIR, { recursive: true })
   mkdirSync(OUTPUT_IMAGE_THUMB_DIR, { recursive: true })
 
+  console.log(
+    `[sync-notion-gallery] Processing ${pages.length} pages with concurrency limit: ${CONCURRENT_LIMIT}`
+  )
+
+  const limit = pLimit(CONCURRENT_LIMIT)
+  const results = await Promise.all(
+    pages.map((page, index) => limit(() => processPage(page, index + 1)))
+  )
+
   const items: GalleryItem[] = []
-  let index = 1
   const failures: string[] = []
 
-  for (const page of pages) {
-    const categories = pickCategories(page)
-    const date = pickDate(page)
-    const title = pickPageTitle(page)
-
-    const savedS3Link = pickS3Link(page)
-    if (savedS3Link) {
-      items.push({
-        id: index,
-        src: savedS3Link,
-        thumbnailSrc: inferThumbnailLinkFromOriginal(savedS3Link, page.id) ?? savedS3Link,
-        alt: title,
-        categories,
-        date,
-      })
-      index += 1
-      continue
+  for (const result of results) {
+    if (result.item) {
+      items.push(result.item)
     }
-
-    const imageUrl = pickImageUrl(page)
-    if (!imageUrl) {
-      failures.push(`Page ${page.id}: image URL not found`)
-      continue
-    }
-
-    try {
-      const { contentType, data } = await downloadImage(imageUrl)
-      const extension = guessExtension(imageUrl, contentType)
-      const originalFilename = `${page.id}${extension}`
-      const thumbFilename = `${page.id}-thumb.webp`
-      const originalPath = join(OUTPUT_IMAGE_ORIGINAL_DIR, originalFilename)
-      const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
-      const originalS3Link = `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${originalFilename}`
-      const thumbS3Link = `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${thumbFilename}`
-
-      rmSync(originalPath, { force: true })
-      rmSync(thumbPath, { force: true })
-      writeFileSync(originalPath, data)
-      const thumbCreated = createThumbnail(originalPath, thumbPath)
-
-      if (!thumbCreated) {
-        throw new Error('Thumbnail generation failed. Install ImageMagick (magick/convert).')
-      }
-
-      await updatePageS3Link(page, originalS3Link)
-
-      items.push({
-        id: index,
-        src: originalS3Link,
-        thumbnailSrc: thumbS3Link,
-        alt: title,
-        categories,
-        date,
-      })
-      index += 1
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error)
-      failures.push(`Page ${page.id}: ${message}`)
+    if (result.error) {
+      failures.push(result.error)
     }
   }
 
