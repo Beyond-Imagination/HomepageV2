@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
 import { useInView } from 'framer-motion'
 import { useRef } from 'react'
-import { Rocket, Users, Code, Calendar } from 'lucide-react'
+import { Rocket, Users, Calendar, GraduationCap } from 'lucide-react'
 
 const stats = [
   {
@@ -12,15 +12,15 @@ const stats = [
   },
   {
     icon: Users,
-    value: '8',
-    label: 'Members',
+    value: '13',
+    label: 'Active Members',
     description: '활동 중인 팀원',
   },
   {
-    icon: Code,
-    value: '50K+',
-    label: 'Lines of Code',
-    description: '작성된 코드',
+    icon: GraduationCap,
+    value: '18',
+    label: 'Total Members',
+    description: '함께한 사람들',
   },
   {
     icon: Calendar,
