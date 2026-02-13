@@ -34,3 +34,4 @@ next-env.d.ts
 /dist/
 /public/images/gallery/
 /src/data/gallery.generated.json
+/src/data/gallery.pending-link-updates.json
