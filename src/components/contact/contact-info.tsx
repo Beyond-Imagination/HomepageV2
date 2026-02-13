@@ -1,4 +1,4 @@
-import { Mail, MapPin, Clock, Github, MessageCircle } from 'lucide-react'
+import { Mail, MapPin, Clock, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import {
   Dialog,
@@ -7,6 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { GitHubIcon } from '@/components/icons/github-icon'
 
 const contactDetails = [
   {
@@ -31,7 +32,7 @@ const contactDetails = [
 
 const socialLinks = [
   {
-    icon: Github,
+    icon: GitHubIcon,
     label: 'GitHub',
     value: 'github.com/beyond-imagination',
     href: 'https://github.com',
