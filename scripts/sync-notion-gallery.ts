@@ -6,6 +6,7 @@ import pLimit from 'p-limit'
 const NOTION_BASE_URL = 'https://api.notion.com/v1'
 const NOTION_VERSION = '2022-06-28'
 const OUTPUT_JSON_PATH = 'src/data/gallery.generated.json'
+const OUTPUT_PENDING_UPDATES_PATH = 'src/data/gallery.pending-link-updates.json'
 const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/gallery/original'
 const OUTPUT_IMAGE_THUMB_DIR = 'public/images/gallery/thumb'
 const OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH = '/images/gallery/original'
@@ -60,6 +61,12 @@ type GalleryItem = {
   alt: string
   categories: string[]
   date: string
+}
+
+type PendingLinkUpdate = {
+  pageId: string
+  link: string
+  propertyType: 'url' | 'rich_text'
 }
 
 function sleep(ms: number) {
@@ -176,6 +183,17 @@ function pickS3Link(page: NotionPage) {
   return null
 }
 
+function pickS3LinkPropertyType(page: NotionPage) {
+  const property = page.properties[notionS3LinkPropertyName]
+  if (!property) return null
+
+  if (property.type === 'url' || property.type === 'rich_text') {
+    return property.type
+  }
+
+  return null
+}
+
 function pickImageUrl(page: NotionPage) {
   const target = page.properties[notionImagePropertyName]
   const targetFiles = target?.files ?? []
@@ -253,80 +271,6 @@ async function notionRequest(path: string, body: Record<string, unknown>) {
   }
 
   throw new Error('Notion API request failed: retry loop terminated unexpectedly')
-}
-
-async function notionUpdatePage(pageId: string, payload: Record<string, unknown>) {
-  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
-    try {
-      const response = await fetch(`${NOTION_BASE_URL}/pages/${pageId}`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${notionToken}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (response.ok) {
-        return
-      }
-
-      const responseText = await response.text()
-      const isRetryable = response.status === 429 || response.status >= 500
-      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
-        throw new Error(`Notion page update failed: ${response.status} ${responseText}`)
-      }
-
-      const retryAfterMs = getRetryDelayMs(response.status, response.headers.get('retry-after'))
-      console.warn(
-        `[sync-notion-gallery] Notion update retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
-      )
-      await sleep(retryAfterMs)
-    } catch (error) {
-      if (attempt === NOTION_API_MAX_RETRIES) {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new Error(`Notion page update failed after retries: ${message}`)
-      }
-
-      console.warn(
-        `[sync-notion-gallery] Notion update network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
-      )
-      await sleep(NOTION_API_RETRY_DELAY_MS)
-    }
-  }
-
-  throw new Error('Notion page update failed: retry loop terminated unexpectedly')
-}
-
-async function updatePageS3Link(page: NotionPage, link: string) {
-  const property = page.properties[notionS3LinkPropertyName]
-
-  if (!property) {
-    throw new Error(`Property "${notionS3LinkPropertyName}" not found in page properties`)
-  }
-
-  if (property.type === 'url') {
-    await notionUpdatePage(page.id, {
-      properties: {
-        [notionS3LinkPropertyName]: { url: link },
-      },
-    })
-    return
-  }
-
-  if (property.type === 'rich_text') {
-    await notionUpdatePage(page.id, {
-      properties: {
-        [notionS3LinkPropertyName]: {
-          rich_text: [{ type: 'text', text: { content: link } }],
-        },
-      },
-    })
-    return
-  }
-
-  throw new Error(`Property "${notionS3LinkPropertyName}" must be "url" or "rich_text" type`)
 }
 
 async function fetchDatabasePages() {
@@ -414,12 +358,26 @@ function inferThumbnailLinkFromOriginal(originalLink: string, pageId: string) {
 async function processPage(
   page: NotionPage,
   index: number
-): Promise<{ item: GalleryItem | null; error: string | null }> {
+): Promise<{
+  item: GalleryItem | null
+  pendingUpdate: PendingLinkUpdate | null
+  error: string | null
+}> {
   const categories = pickCategories(page)
   const date = pickDate(page)
   const title = pickPageTitle(page)
 
   const savedS3Link = pickS3Link(page)
+  const s3LinkPropertyType = pickS3LinkPropertyType(page)
+
+  if (!s3LinkPropertyType) {
+    return {
+      item: null,
+      pendingUpdate: null,
+      error: `Page ${page.id}: "${notionS3LinkPropertyName}" property must exist and be url/rich_text type`,
+    }
+  }
+
   if (savedS3Link) {
     return {
       item: {
@@ -430,6 +388,7 @@ async function processPage(
         categories,
         date,
       },
+      pendingUpdate: null,
       error: null,
     }
   }
@@ -438,6 +397,7 @@ async function processPage(
   if (!imageUrl) {
     return {
       item: null,
+      pendingUpdate: null,
       error: `Page ${page.id}: image URL not found`,
     }
   }
@@ -459,8 +419,6 @@ async function processPage(
       throw new Error('Thumbnail generation failed. Install ImageMagick (magick/convert).')
     }
 
-    await updatePageS3Link(page, originalS3Link)
-
     return {
       item: {
         id: index,
@@ -470,12 +428,18 @@ async function processPage(
         categories,
         date,
       },
+      pendingUpdate: {
+        pageId: page.id,
+        link: originalS3Link,
+        propertyType: s3LinkPropertyType,
+      },
       error: null,
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     return {
       item: null,
+      pendingUpdate: null,
       error: `Page ${page.id}: ${message}`,
     }
   }
@@ -505,11 +469,15 @@ async function run() {
   )
 
   const items: GalleryItem[] = []
+  const pendingUpdates: PendingLinkUpdate[] = []
   const failures: string[] = []
 
   for (const result of results) {
     if (result.item) {
       items.push(result.item)
+    }
+    if (result.pendingUpdate) {
+      pendingUpdates.push(result.pendingUpdate)
     }
     if (result.error) {
       failures.push(result.error)
@@ -528,7 +496,9 @@ async function run() {
 
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(items, null, 2)}\n`)
+  writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
   console.log(`[sync-notion-gallery] Synced ${items.length} image(s).`)
+  console.log(`[sync-notion-gallery] Pending Notion link updates: ${pendingUpdates.length}`)
 }
 
 run().catch((error: unknown) => {
