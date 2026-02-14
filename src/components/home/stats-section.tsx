@@ -1,36 +1,48 @@
 import { motion } from 'framer-motion'
 import { useInView } from 'framer-motion'
-import { useRef } from 'react'
+import { useRef, useMemo } from 'react'
 import { Rocket, Users, Calendar, GraduationCap } from 'lucide-react'
 
-const stats = [
-  {
-    icon: Rocket,
-    value: '12+',
-    label: 'Projects',
-    description: '완료된 프로젝트',
-  },
-  {
-    icon: Users,
-    value: '13',
-    label: 'Active Members',
-    description: '활동 중인 팀원',
-  },
-  {
-    icon: GraduationCap,
-    value: '18',
-    label: 'Total Members',
-    description: '함께한 사람들',
-  },
-  {
-    icon: Calendar,
-    value: '3+',
-    label: 'Years',
-    description: '함께한 시간',
-  },
-]
+const FOUNDING_DATE = new Date('2017-03-01')
 
 export function StatsSection() {
+  const yearsSinceFounding = useMemo(() => {
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - FOUNDING_DATE.getTime())
+    const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365.25)
+    return Math.floor(diffYears)
+  }, [])
+
+  const stats = useMemo(
+    () => [
+      {
+        icon: Rocket,
+        value: '12+',
+        label: 'Projects',
+        description: '완료된 프로젝트',
+      },
+      {
+        icon: Users,
+        value: '13',
+        label: 'Active Members',
+        description: '활동 중인 팀원',
+      },
+      {
+        icon: GraduationCap,
+        value: '18',
+        label: 'Total Members',
+        description: '함께한 사람들',
+      },
+      {
+        icon: Calendar,
+        value: `${yearsSinceFounding}+`,
+        label: 'Years',
+        description: '함께한 시간',
+      },
+    ],
+    [yearsSinceFounding]
+  )
+
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true, margin: '-100px' })
 
