@@ -26,6 +26,7 @@ jobs:
       CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       NOTION_GALLERY_DATABASE_ID: ${{ secrets.NOTION_GALLERY_DATABASE_ID }}
+      NOTION_TEAM_DATABASE_ID: ${{ secrets.NOTION_TEAM_DATABASE_ID }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
     steps:
       - name: Start timer
@@ -65,16 +66,27 @@ jobs:
         id: sync_gallery
         run: pnpm sync:gallery
 
+      - name: Sync team from Notion
+        id: sync_team
+        run: pnpm sync:team
+
       - name: Upload fetched Notion images
         id: upload_gallery_images
         run: |
           if [ -d "public/images/gallery" ]; then
             aws s3 sync public/images/gallery "s3://$S3_BUCKET/images/gallery" --cache-control "public,max-age=31536000,immutable"
           fi
+          if [ -d "public/images/team" ]; then
+            aws s3 sync public/images/team "s3://$S3_BUCKET/images/team" --cache-control "public,max-age=31536000,immutable"
+          fi
 
       - name: Apply Notion S3 links
         id: apply_notion_s3_links
         run: pnpm sync:gallery:apply-links
+
+      - name: Apply Notion team S3 links
+        id: apply_notion_team_s3_links
+        run: pnpm sync:team:apply-links
 
       - name: Build
         id: build
@@ -90,6 +102,9 @@ jobs:
             --exclude "images/gallery" \
             --exclude "images/gallery/*" \
             --exclude "images/gallery/**" \
+            --exclude "images/team" \
+            --exclude "images/team/*" \
+            --exclude "images/team/**" \
             --cache-control "public,max-age=31536000,immutable"
 
       - name: Deploy HTML (no cache)
@@ -112,10 +127,12 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           START_EPOCH: ${{ steps.start_timer.outputs.epoch }}
           OUTCOME_SYNC_GALLERY: ${{ steps.sync_gallery.outcome }}
+          OUTCOME_SYNC_TEAM: ${{ steps.sync_team.outcome }}
           OUTCOME_UPLOAD_GALLERY_JSON_ARTIFACT: ${{ steps.upload_gallery_json_artifact.outcome }}
           OUTCOME_INSTALL_IMAGEMAGICK: ${{ steps.install_imagemagick.outcome }}
           OUTCOME_UPLOAD_GALLERY_IMAGES: ${{ steps.upload_gallery_images.outcome }}
           OUTCOME_APPLY_NOTION_S3_LINKS: ${{ steps.apply_notion_s3_links.outcome }}
+          OUTCOME_APPLY_NOTION_TEAM_S3_LINKS: ${{ steps.apply_notion_team_s3_links.outcome }}
           OUTCOME_BUILD: ${{ steps.build.outcome }}
           OUTCOME_DEPLOY_STATIC_ASSETS: ${{ steps.deploy_static_assets.outcome }}
           OUTCOME_DEPLOY_HTML: ${{ steps.deploy_html.outcome }}
@@ -136,9 +153,11 @@ jobs:
           failed_steps=()
           [ "$OUTCOME_INSTALL_IMAGEMAGICK" = "failure" ] && failed_steps+=("Install ImageMagick")
           [ "$OUTCOME_SYNC_GALLERY" = "failure" ] && failed_steps+=("Sync gallery from Notion")
+          [ "$OUTCOME_SYNC_TEAM" = "failure" ] && failed_steps+=("Sync team from Notion")
           [ "$OUTCOME_UPLOAD_GALLERY_JSON_ARTIFACT" = "failure" ] && failed_steps+=("Upload gallery generated JSON artifact")
           [ "$OUTCOME_UPLOAD_GALLERY_IMAGES" = "failure" ] && failed_steps+=("Upload fetched Notion images")
           [ "$OUTCOME_APPLY_NOTION_S3_LINKS" = "failure" ] && failed_steps+=("Apply Notion S3 links")
+          [ "$OUTCOME_APPLY_NOTION_TEAM_S3_LINKS" = "failure" ] && failed_steps+=("Apply Notion team S3 links")
           [ "$OUTCOME_BUILD" = "failure" ] && failed_steps+=("Build")
           [ "$OUTCOME_DEPLOY_STATIC_ASSETS" = "failure" ] && failed_steps+=("Deploy static assets")
           [ "$OUTCOME_DEPLOY_HTML" = "failure" ] && failed_steps+=("Deploy HTML")

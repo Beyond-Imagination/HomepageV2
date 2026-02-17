@@ -33,5 +33,8 @@ next-env.d.ts
 **/._.DS_Store
 /dist/
 /public/images/gallery/
+/public/images/team/
 /src/data/gallery.generated.json
 /src/data/gallery.pending-link-updates.json
+/src/data/team.generated.json
+/src/data/team.pending-link-updates.json
