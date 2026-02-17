@@ -406,6 +406,22 @@ async function processPage(
   }
 }
 
+function getRolePriority(member: TeamMember): number {
+  switch (member.role) {
+    case 'Team Lead':
+      return 1
+    case 'Project Lead':
+      return 2
+    case 'Member':
+      return 3
+    case '탈퇴 멤버':
+      return 4
+    default:
+      if (member.role.startsWith('Member')) return 3
+      return 5
+  }
+}
+
 async function run() {
   if (!notionToken || !notionDatabaseId) {
     throw new Error(
@@ -442,17 +458,13 @@ async function run() {
 
   // 정렬 로직 적용
   members.sort((a, b) => {
-    // 1. 팀장 우선
-    if (a.isTeamLead && !b.isTeamLead) return -1
-    if (!a.isTeamLead && b.isTeamLead) return 1
+    const priorityA = getRolePriority(a)
+    const priorityB = getRolePriority(b)
 
-    // 2. 현직 우선 (탈퇴일 없는 사람 우선)
-    const aIsActive = !a.leaveDate
-    const bIsActive = !b.leaveDate
-    if (aIsActive && !bIsActive) return -1
-    if (!aIsActive && bIsActive) return 1
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB
+    }
 
-    // 3. 기존 순서 (가입일 순)
     return a.id - b.id
   })
 
