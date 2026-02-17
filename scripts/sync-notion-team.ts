@@ -223,42 +223,22 @@ async function downloadImage(url: string) {
 }
 
 function resizeImage(originalPath: string, resizedPath: string) {
-  const commands: Array<{ command: string; args: string[] }> = [
-    {
-      command: 'magick',
-      args: [
-        originalPath,
-        '-auto-orient',
-        '-resize',
-        `${IMAGE_WIDTH}x${IMAGE_WIDTH}^`,
-        '-gravity',
-        'center',
-        '-extent',
-        `${IMAGE_WIDTH}x${IMAGE_WIDTH}`,
-        '-quality',
-        String(IMAGE_QUALITY),
-        resizedPath,
-      ],
-    },
-    {
-      command: 'convert',
-      args: [
-        originalPath,
-        '-auto-orient',
-        '-resize',
-        `${IMAGE_WIDTH}x${IMAGE_WIDTH}^`,
-        '-gravity',
-        'center',
-        '-extent',
-        `${IMAGE_WIDTH}x${IMAGE_WIDTH}`,
-        '-quality',
-        String(IMAGE_QUALITY),
-        resizedPath,
-      ],
-    },
+  const args = [
+    originalPath,
+    '-auto-orient',
+    '-resize',
+    `${IMAGE_WIDTH}x${IMAGE_WIDTH}^`,
+    '-gravity',
+    'center',
+    '-extent',
+    `${IMAGE_WIDTH}x${IMAGE_WIDTH}`,
+    '-quality',
+    String(IMAGE_QUALITY),
+    resizedPath,
   ]
+  const commands = ['magick', 'convert']
 
-  for (const { command, args } of commands) {
+  for (const command of commands) {
     const result = spawnSync(command, args, { stdio: 'ignore' })
     if (!result.error && result.status === 0) {
       return true
@@ -334,10 +314,8 @@ async function processPage(
   const s3LinkPropertyType = pickS3LinkPropertyType(page)
 
   if (savedS3Link) {
-    // 이미 S3 링크가 있으면 다운로드 건너뜀
     image = savedS3Link
   } else {
-    // S3 링크가 없으면 다운로드 및 변환 시도
     const imageUrl = pickImageUrl(page)
 
     if (imageUrl) {
@@ -372,7 +350,6 @@ async function processPage(
         image = finalS3Link
         rmSync(tempPath, { force: true })
 
-        // S3 링크 업데이트 준비
         if (s3LinkPropertyType) {
           pendingUpdate = {
             pageId: page.id,
@@ -456,7 +433,6 @@ async function run() {
     }
   }
 
-  // 정렬 로직 적용
   members.sort((a, b) => {
     const priorityA = getRolePriority(a)
     const priorityB = getRolePriority(b)
