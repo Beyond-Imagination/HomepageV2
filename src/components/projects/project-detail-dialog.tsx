@@ -96,14 +96,16 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className={cn(
-          'sm:max-w-4xl w-[95vw] max-h-[95vh] overflow-hidden p-0 border-none bg-background shadow-2xl transition-all duration-300',
-          viewMode === 'gallery' ? 'h-[90vh] sm:h-[95vh]' : 'h-auto'
+          'sm:max-w-4xl w-[95vw] max-h-[95vh] p-0 border-none bg-background shadow-2xl transition-all duration-300',
+          viewMode === 'gallery'
+            ? 'h-[90vh] sm:h-[95vh] overflow-hidden'
+            : 'h-auto overflow-y-auto overscroll-contain'
         )}
       >
         {/* 1. Details View */}
         <div
           className={cn(
-            'w-full h-full overflow-y-auto transition-opacity duration-300 pb-10',
+            'w-full transition-opacity duration-300 pb-10',
             viewMode === 'details' ? 'opacity-100 block' : 'opacity-0 hidden'
           )}
         >
