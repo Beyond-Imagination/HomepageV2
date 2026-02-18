@@ -284,7 +284,7 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                           const src = getScreenshotSrc(item)
                           const title = getScreenshotTitle(item)
                           return (
-                            <CarouselItem key={index} className="pl-4 basis-1/2 md:basis-1/3">
+                            <CarouselItem key={src} className="pl-4 basis-1/2 md:basis-1/3">
                               <div
                                 className="rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all aspect-video group"
                                 onClick={() => handleScreenshotClick(index)}
@@ -343,7 +343,7 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                   const title = getScreenshotTitle(item)
                   return (
                     <CarouselItem
-                      key={index}
+                      key={src}
                       className="h-full flex items-center justify-center basis-full"
                     >
                       <div className="relative w-full h-full flex items-center justify-center p-4">
@@ -365,7 +365,7 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
           {/* Indicator & Title */}
           <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none flex flex-col items-center gap-2">
             <h3 className="text-white text-lg font-medium drop-shadow-md">
-              {screenshots[currentSlide] ? getScreenshotTitle(screenshots[currentSlide]) || '' : ''}
+              {(screenshots[currentSlide] && getScreenshotTitle(screenshots[currentSlide])) || ''}
             </h3>
             <p className="text-white/50 text-sm">
               {currentSlide + 1} / {screenshots.length}
