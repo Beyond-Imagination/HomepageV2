@@ -1,7 +1,7 @@
 import { run } from './lib/apply-notion-links.ts'
 
-const PENDING_UPDATES_PATH = 'src/data/gallery.pending-link-updates.json'
-const LOG_TAG = 'apply-notion-gallery-links'
+const PENDING_UPDATES_PATH = 'src/data/team.pending-link-updates.json'
+const LOG_TAG = 'apply-notion-team-links'
 
 run(PENDING_UPDATES_PATH, LOG_TAG).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)

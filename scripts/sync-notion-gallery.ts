@@ -1,10 +1,16 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { dirname, extname, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import pLimit from 'p-limit'
+import { notionRequest } from './lib/notion.ts'
+import type {
+  GalleryNotionPage as NotionPage,
+  NotionQueryResponse,
+  PendingLinkUpdate,
+} from './lib/types.ts'
+import { CONCURRENT_LIMIT, notionS3LinkPropertyName, notionToken } from './lib/constants.ts'
+import { downloadImage, guessExtension } from './lib/utils.ts'
 
-const NOTION_BASE_URL = 'https://api.notion.com/v1'
-const NOTION_VERSION = '2022-06-28'
 const OUTPUT_JSON_PATH = 'src/data/gallery.generated.json'
 const OUTPUT_PENDING_UPDATES_PATH = 'src/data/gallery.pending-link-updates.json'
 const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/gallery/original'
@@ -13,46 +19,13 @@ const OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH = '/images/gallery/original'
 const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/gallery/thumb'
 const THUMB_WIDTH = 640
 const THUMB_QUALITY = 72
-const CONCURRENT_LIMIT = 5 // Notion API rate limit 고려하여 동시 처리 제한
-const NOTION_API_MAX_RETRIES = 3
-const NOTION_API_RETRY_DELAY_MS = 500
+const LOG_TAG = 'sync-notion-gallery'
 
-const notionToken = process.env.NOTION_TOKEN
 const notionDatabaseId = process.env.NOTION_GALLERY_DATABASE_ID
+
 const notionImagePropertyName = '파일'
 const notionCategoryPropertyName = '카테고리'
 const notionDatePropertyName = '날짜'
-const notionS3LinkPropertyName = 'S3 link'
-
-type NotionFile = {
-  type: 'external' | 'file'
-  external?: { url: string }
-  file?: { url: string }
-}
-
-type NotionProperty = {
-  type: string
-  files?: NotionFile[]
-  title?: Array<{ plain_text?: string }>
-  select?: { name?: string }
-  multi_select?: Array<{ name?: string }>
-  rich_text?: Array<{ plain_text?: string }>
-  date?: { start?: string }
-  url?: string | null
-}
-
-type NotionPage = {
-  id: string
-  created_time: string
-  properties: Record<string, NotionProperty>
-  cover?: NotionFile
-}
-
-type NotionQueryResponse = {
-  results: NotionPage[]
-  has_more: boolean
-  next_cursor: string | null
-}
 
 type GalleryItem = {
   id: number
@@ -61,45 +34,6 @@ type GalleryItem = {
   alt: string
   categories: string[]
   date: string
-}
-
-type PendingLinkUpdate = {
-  pageId: string
-  link: string
-  propertyType: 'url' | 'rich_text'
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-function parseRetryAfterMs(retryAfter: string | null) {
-  if (!retryAfter) return null
-  const seconds = Number(retryAfter)
-  if (!Number.isNaN(seconds) && seconds >= 0) {
-    return Math.ceil(seconds * 1000)
-  }
-
-  const dateMs = new Date(retryAfter).getTime()
-  if (Number.isNaN(dateMs)) return null
-  const diffMs = dateMs - Date.now()
-  return diffMs > 0 ? diffMs : 0
-}
-
-function getRetryDelayMs(status: number, retryAfterHeader: string | null) {
-  if (status === 429) {
-    const retryAfterMs = parseRetryAfterMs(retryAfterHeader)
-    if (retryAfterMs !== null) return retryAfterMs
-
-    console.warn(
-      '[sync-notion-gallery] 429 received without a valid Retry-After header. Falling back to default backoff.'
-    )
-    return NOTION_API_RETRY_DELAY_MS
-  }
-
-  return NOTION_API_RETRY_DELAY_MS
 }
 
 function toDisplayDate(value?: string) {
@@ -217,72 +151,20 @@ function pickImageUrl(page: NotionPage) {
   return null
 }
 
-function guessExtension(url: string, contentType: string | null) {
-  const fromUrl = extname(new URL(url).pathname)
-  if (fromUrl) return fromUrl.toLowerCase()
-
-  if (!contentType) return '.jpg'
-  if (contentType.includes('png')) return '.png'
-  if (contentType.includes('webp')) return '.webp'
-  if (contentType.includes('gif')) return '.gif'
-
-  return '.jpg'
-}
-
-async function notionRequest(path: string, body: Record<string, unknown>) {
-  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
-    try {
-      const response = await fetch(`${NOTION_BASE_URL}${path}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${notionToken}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (response.ok) {
-        return (await response.json()) as NotionQueryResponse
-      }
-
-      const responseText = await response.text()
-      const isRetryable = response.status === 429 || response.status >= 500
-      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
-        throw new Error(`Notion API request failed: ${response.status} ${responseText}`)
-      }
-
-      const retryAfterMs = getRetryDelayMs(response.status, response.headers.get('retry-after'))
-      console.warn(
-        `[sync-notion-gallery] Notion request retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
-      )
-      await sleep(retryAfterMs)
-    } catch (error) {
-      if (attempt === NOTION_API_MAX_RETRIES) {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new Error(`Notion API request failed after retries: ${message}`)
-      }
-
-      console.warn(
-        `[sync-notion-gallery] Notion request network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
-      )
-      await sleep(NOTION_API_RETRY_DELAY_MS)
-    }
-  }
-
-  throw new Error('Notion API request failed: retry loop terminated unexpectedly')
-}
-
 async function fetchDatabasePages() {
   const pages: NotionPage[] = []
   let startCursor: string | undefined = undefined
 
   while (true) {
-    const data = await notionRequest(`/databases/${notionDatabaseId}/query`, {
-      page_size: 100,
-      start_cursor: startCursor,
-      sorts: [{ timestamp: 'created_time', direction: 'descending' }],
-    })
+    const data: NotionQueryResponse<NotionPage> = await notionRequest<NotionPage>(
+      `/databases/${notionDatabaseId}/query`,
+      {
+        page_size: 100,
+        start_cursor: startCursor,
+        sorts: [{ timestamp: 'created_time', direction: 'descending' }],
+      },
+      LOG_TAG
+    )
 
     pages.push(...data.results)
 
@@ -291,19 +173,6 @@ async function fetchDatabasePages() {
   }
 
   return pages
-}
-
-async function downloadImage(url: string) {
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Image download failed: ${response.status}`)
-  }
-
-  const arrayBuffer = await response.arrayBuffer()
-  return {
-    contentType: response.headers.get('content-type'),
-    data: Buffer.from(arrayBuffer),
-  }
 }
 
 function createThumbnail(originalPath: string, thumbPath: string) {
@@ -450,7 +319,7 @@ async function run() {
     throw new Error('NOTION_TOKEN/NOTION_GALLERY_DATABASE_ID missing.')
   }
 
-  console.log('[sync-notion-gallery] Fetching pages from Notion database...')
+  console.log(`[${LOG_TAG}] Fetching pages from Notion database...`)
   const pages = await fetchDatabasePages()
   pages.sort((a, b) => pickSortableTimestamp(b) - pickSortableTimestamp(a))
 
@@ -460,7 +329,7 @@ async function run() {
   mkdirSync(OUTPUT_IMAGE_THUMB_DIR, { recursive: true })
 
   console.log(
-    `[sync-notion-gallery] Processing ${pages.length} pages with concurrency limit: ${CONCURRENT_LIMIT}`
+    `[${LOG_TAG}] Processing ${pages.length} pages with concurrency limit: ${CONCURRENT_LIMIT}`
   )
 
   const limit = pLimit(CONCURRENT_LIMIT)
@@ -497,13 +366,13 @@ async function run() {
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(items, null, 2)}\n`)
   writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
-  console.log(`[sync-notion-gallery] Synced ${items.length} image(s).`)
-  console.log(`[sync-notion-gallery] Pending Notion link updates: ${pendingUpdates.length}`)
+  console.log(`[${LOG_TAG}] Synced ${items.length} image(s).`)
+  console.log(`[${LOG_TAG}] Pending Notion link updates: ${pendingUpdates.length}`)
 }
 
 run().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
-  console.error('[sync-notion-gallery] Failed:', error)
-  console.error('[sync-notion-gallery] Message:', message)
+  console.error(`[${LOG_TAG}] Failed:`, error)
+  console.error(`[${LOG_TAG}] Message:`, message)
   process.exit(1)
 })
