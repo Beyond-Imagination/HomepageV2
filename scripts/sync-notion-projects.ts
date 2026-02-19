@@ -213,8 +213,18 @@ class ProjectMapper {
 
   pickPeople(page: NotionPage, propertyName: string) {
     const property = page.properties[propertyName]
-    if (property?.type !== 'people') return []
-    return property.people?.map((person) => person.name || '').filter(Boolean) || []
+    if (property?.type !== 'rich_text') return []
+
+    const text =
+      property.rich_text
+        ?.map((t) => t.plain_text)
+        .join('')
+        .trim() || ''
+
+    return text
+      .split(',')
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0)
   }
 
   pickStatus(page: NotionPage): 'in-progress' | 'completed' {
@@ -275,7 +285,7 @@ class ProjectMapper {
     const description = this.pickRichText(page, notionDescriptionPropertyName)
     const goal = this.pickRichText(page, notionGoalPropertyName)
     const techStack = this.pickMultiSelect(page, notionTechStackPropertyName)
-    const members = this.pickPeople(page, notionParticipantsPropertyName)
+    const participants = this.pickPeople(page, notionParticipantsPropertyName)
     const github = this.pickUrl(page, notionGithubPropertyName)
     const demo = this.pickUrl(page, notionDemoPropertyName)
     const { startDate, endDate } = this.pickDate(page)
@@ -289,7 +299,7 @@ class ProjectMapper {
       description,
       goal,
       techStack,
-      members,
+      participants,
       startDate,
       endDate: endDate || '',
       thumbnail: thumbUrl || '',
