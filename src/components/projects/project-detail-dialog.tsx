@@ -99,7 +99,7 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
           'sm:max-w-4xl w-[95vw] max-h-[95vh] p-0 border-none bg-background shadow-2xl transition-all duration-300',
           viewMode === 'gallery'
             ? 'h-[90vh] sm:h-[95vh] overflow-hidden'
-            : 'h-auto overflow-y-auto overscroll-contain'
+            : 'h-auto overflow-y-auto overscroll-contain scrollbar-hide'
         )}
       >
         {/* 1. Details View */}

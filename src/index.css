@@ -127,3 +127,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE, Edge 호환성 */
+  scrollbar-width: none; /* Firefox 호환성 */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera 호환성 */
+}
