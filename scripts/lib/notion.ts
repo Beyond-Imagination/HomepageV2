@@ -9,15 +9,16 @@ import {
   notionToken,
 } from './constants.ts'
 
-export async function notionRequest<T>(
-  path: string,
+async function notionFetch(
+  endpoint: string,
+  method: 'POST' | 'PATCH',
   body: Record<string, unknown>,
   logTag: string
-): Promise<NotionQueryResponse<T>> {
+): Promise<unknown> {
   for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
     try {
-      const response = await fetch(`${NOTION_BASE_URL}${path}`, {
-        method: 'POST',
+      const response = await fetch(`${NOTION_BASE_URL}${endpoint}`, {
+        method,
         headers: {
           Authorization: `Bearer ${notionToken}`,
           'Notion-Version': NOTION_VERSION,
@@ -27,13 +28,14 @@ export async function notionRequest<T>(
       })
 
       if (response.ok) {
-        return (await response.json()) as NotionQueryResponse<T>
+        const text = await response.text()
+        return text ? JSON.parse(text) : {}
       }
 
       const responseText = await response.text()
       const isRetryable = response.status === 429 || response.status >= 500
       if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
-        throw new Error(`Notion API request failed: ${response.status} ${responseText}`)
+        throw new Error(`Notion API (${method}) failed: ${response.status} ${responseText}`)
       }
 
       const retryAfterMs = getRetryDelayMs(
@@ -42,69 +44,30 @@ export async function notionRequest<T>(
         logTag
       )
       console.warn(
-        `[${logTag}] Notion request retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
+        `[${logTag}] Retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
       )
       await sleep(retryAfterMs)
     } catch (error) {
       if (attempt === NOTION_API_MAX_RETRIES) {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new Error(`Notion API request failed after retries: ${message}`)
+        throw error instanceof Error ? error : new Error(String(error))
       }
-      console.warn(
-        `[${logTag}] Notion request network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
-      )
+      console.warn(`[${logTag}] Network retry ${attempt}/${NOTION_API_MAX_RETRIES}`)
       await sleep(NOTION_API_RETRY_DELAY_MS)
     }
   }
-  throw new Error('Notion API request failed: retry loop terminated unexpectedly')
+  throw new Error('Notion API failed: retry loop terminated unexpectedly')
+}
+
+export async function notionRequest<T>(
+  path: string,
+  body: Record<string, unknown>,
+  logTag: string
+): Promise<NotionQueryResponse<T>> {
+  return (await notionFetch(path, 'POST', body, logTag)) as NotionQueryResponse<T>
 }
 
 async function notionUpdatePage(pageId: string, payload: Record<string, unknown>, logTag: string) {
-  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
-    try {
-      const response = await fetch(`${NOTION_BASE_URL}/pages/${pageId}`, {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${notionToken}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
-
-      if (response.ok) {
-        return
-      }
-
-      const responseText = await response.text()
-      const isRetryable = response.status === 429 || response.status >= 500
-      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
-        throw new Error(`Notion page update failed: ${response.status} ${responseText}`)
-      }
-
-      const retryAfterMs = getRetryDelayMs(
-        response.status,
-        response.headers.get('retry-after'),
-        logTag
-      )
-      console.warn(
-        `[${logTag}] Notion update retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
-      )
-      await sleep(retryAfterMs)
-    } catch (error) {
-      if (attempt === NOTION_API_MAX_RETRIES) {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new Error(`Notion page update failed after retries: ${message}`)
-      }
-
-      console.warn(
-        `[${logTag}] Notion update network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
-      )
-      await sleep(NOTION_API_RETRY_DELAY_MS)
-    }
-  }
-
-  throw new Error('Notion page update failed: retry loop terminated unexpectedly')
+  return notionFetch(`/pages/${pageId}`, 'PATCH', payload, logTag)
 }
 
 export async function updatePageS3Link(update: PendingLinkUpdate, logTag: string) {

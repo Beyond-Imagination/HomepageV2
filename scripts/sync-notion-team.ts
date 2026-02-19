@@ -346,7 +346,7 @@ async function run() {
   })
 
   if (members.length === 0) {
-    console.warn('[${LOG_TAG}] No members were synced from Notion.')
+    console.warn(`[${LOG_TAG}] No members were synced from Notion.`)
   }
 
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
@@ -359,6 +359,7 @@ async function run() {
 
 run().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
-  console.error(`[${LOG_TAG}] Failed:`, message)
+  console.error(`[${LOG_TAG}] Failed:`, error)
+  console.error(`[${LOG_TAG}] Message:`, message)
   process.exit(1)
 })
