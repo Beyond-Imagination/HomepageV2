@@ -2,13 +2,18 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import pLimit from 'p-limit'
-import { notionRequest, updatePageProperty } from './lib/notion.ts'
-import type { ProjectNotionPage as NotionPage, NotionQueryResponse } from './lib/types.ts'
+import { notionRequest } from './lib/notion.ts'
+import type {
+  ProjectNotionPage as NotionPage,
+  NotionQueryResponse,
+  ProjectPendingUpdate,
+} from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
 import type { Project, Screenshot } from '../src/types/project.ts'
 
 const OUTPUT_JSON_PATH = 'src/data/projects.generated.json'
+const OUTPUT_PENDING_UPDATES_PATH = 'src/data/projects.pending-updates.json'
 const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/projects/original'
 const OUTPUT_IMAGE_THUMB_DIR = 'public/images/projects/thumb'
 const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/projects/thumb'
@@ -371,16 +376,12 @@ async function processPage(page: NotionPage, index: number) {
     }
   }
 
-  if (Object.keys(pendingUpdates).length > 0) {
-    try {
-      await updatePageProperty(page.id, pendingUpdates, LOG_TAG)
-      console.log(`[${LOG_TAG}] Updated properties for ${title}`)
-    } catch (e) {
-      console.error(`[${LOG_TAG}] Failed to update Notion properties for ${title}:`, e)
-    }
-  }
+  const project = projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
 
-  return projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
+  const pendingUpdate: ProjectPendingUpdate | null =
+    Object.keys(pendingUpdates).length > 0 ? { pageId: page.id, properties: pendingUpdates } : null
+
+  return { project, pendingUpdate }
 }
 
 async function run() {
@@ -402,14 +403,22 @@ async function run() {
   )
 
   const limit = pLimit(CONCURRENT_LIMIT)
-  const projects = await Promise.all(
+  const results = await Promise.all(
     pages.map((page, index) => limit(() => processPage(page, index + 1)))
   )
+
+  const projects = results.map((r) => r.project)
+  const pendingUpdates = results
+    .map((r) => r.pendingUpdate)
+    .filter((u): u is ProjectPendingUpdate => u !== null)
 
   // Save JSON
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(projects, null, 2)}\n`)
+  writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
+
   console.log(`[${LOG_TAG}] Synced ${projects.length} project(s).`)
+  console.log(`[${LOG_TAG}] Pending Notion updates: ${pendingUpdates.length}`)
 }
 
 run().catch((error: unknown) => {

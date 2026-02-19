@@ -7,6 +7,7 @@
     "dev": "vite",
     "sync:gallery": "node -r dotenv/config --experimental-strip-types scripts/sync-notion-gallery.ts",
     "sync:projects": "node -r dotenv/config --experimental-strip-types scripts/sync-notion-projects.ts",
+    "sync:projects:apply-updates": "node -r dotenv/config --experimental-strip-types scripts/apply-notion-project-updates.ts",
     "sync:gallery:apply-links": "node --experimental-strip-types scripts/apply-notion-gallery-links.ts",
     "sync:team": "node -r dotenv/config --experimental-strip-types scripts/sync-notion-team.ts",
     "sync:team:apply-links": "node --experimental-strip-types scripts/apply-notion-team-links.ts",

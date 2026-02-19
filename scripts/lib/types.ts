@@ -53,6 +53,11 @@ export type PendingLinkUpdate = {
   propertyType: 'url' | 'rich_text'
 }
 
+export type ProjectPendingUpdate = {
+  pageId: string
+  properties: Record<string, unknown>
+}
+
 export type ProjectNotionProperty = {
   type: string
   title?: Array<{ plain_text?: string }>
