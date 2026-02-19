@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { Project, ProjectStatus, ProjectCard } from './project-card'
+import { Project, ProjectFilter } from '@/types/project'
+import { ProjectCard } from './project-card'
 import { ProjectDetailDialog } from './project-detail-dialog'
 
 const projects: Project[] = [
@@ -134,14 +135,14 @@ const projects: Project[] = [
   },
 ]
 
-const filters: { value: ProjectStatus; label: string }[] = [
+const filters: { value: ProjectFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'in-progress', label: '진행중' },
   { value: 'completed', label: '완료' },
 ]
 
 export function ProjectsGrid() {
-  const [activeFilter, setActiveFilter] = useState<ProjectStatus>('all')
+  const [activeFilter, setActiveFilter] = useState<ProjectFilter>('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
   const filteredProjects = projects.filter(
