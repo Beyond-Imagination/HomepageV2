@@ -17,7 +17,7 @@ const projects: Project[] = [
     members: ['강민준', '김한빈', '윤재현'],
     goal: '기업 업무 효율화를 위한 맞춤형 AI 비서 서비스 구축',
     github: 'https://github.com',
-    year: '2025',
+    startDate: '2024.03',
     screenshots: [
       {
         src: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=800&h=600&fit=crop',
@@ -46,7 +46,8 @@ const projects: Project[] = [
     goal: '복잡한 비즈니스 데이터의 실시간 모니터링 및 의사결정 지원',
     github: 'https://github.com',
     demo: 'https://demo.com',
-    year: '2024',
+    startDate: '2024.03',
+    endDate: '2024.09',
     screenshots: [
       {
         src: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop',
@@ -71,7 +72,8 @@ const projects: Project[] = [
     goal: '사용자 주도적인 헬스케어 습관 형성 돕기',
     github: 'https://github.com',
     demo: 'https://demo.com',
-    year: '2024',
+    startDate: '2024.01',
+    endDate: '2024.06',
   },
   {
     id: '4',
@@ -87,7 +89,8 @@ const projects: Project[] = [
     goal: '글로벌 시장 대응이 가능한 고성능 커머스 플랫폼 개발',
     github: 'https://github.com',
     demo: 'https://demo.com',
-    year: '2024',
+    startDate: '2024.02',
+    endDate: '2024.08',
     screenshots: [
       {
         src: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&h=600&fit=crop',
@@ -111,7 +114,7 @@ const projects: Project[] = [
     members: ['강민준'],
     goal: '개발자 경험(DX) 개선 및 프로젝트 초기 설정 시간 단축',
     github: 'https://github.com',
-    year: '2025',
+    startDate: '2025.02',
   },
   {
     id: '6',
@@ -126,7 +129,8 @@ const projects: Project[] = [
     goal: '개발자들 간의 건강한 소통과 지식 공유 문화 활성화',
     github: 'https://github.com',
     demo: 'https://demo.com',
-    year: '2023',
+    startDate: '2023.06',
+    endDate: '2023.12',
   },
 ]
 

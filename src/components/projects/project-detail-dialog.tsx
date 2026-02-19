@@ -132,7 +132,11 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                 </span>
                 <div className="flex items-center gap-1.5 text-sm font-medium text-foreground/80 bg-background/30 backdrop-blur-md px-3 py-1 rounded-full">
                   <Calendar className="w-3.5 h-3.5" />
-                  <span>{project.year}</span>
+                  <span>
+                    {project.status === 'in-progress'
+                      ? project.startDate
+                      : `${project.startDate} ~ ${project.endDate}`}
+                  </span>
                 </div>
               </div>
 

@@ -8,11 +8,10 @@ export interface Screenshot {
 
 export type ProjectStatus = 'all' | 'in-progress' | 'completed'
 
-export interface Project {
+interface ProjectBase {
   id: number | string
   title: string
   thumbnail: string
-  status: 'in-progress' | 'completed'
   techStack: string[]
   members: string[]
   goal: string
@@ -20,9 +19,20 @@ export interface Project {
   demo?: string
   description?: string
   summary: string
-  year: string
   screenshots?: Screenshot[]
+  startDate: string
 }
+
+export interface ProjectInProgress extends ProjectBase {
+  status: 'in-progress'
+}
+
+export interface ProjectCompleted extends ProjectBase {
+  status: 'completed'
+  endDate: string
+}
+
+export type Project = ProjectInProgress | ProjectCompleted
 
 export interface ProjectCardProps {
   project: Project
@@ -65,7 +75,11 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
           >
             {project.status === 'in-progress' ? '진행중' : '완료'}
           </span>
-          <span className="text-sm text-muted-foreground">{project.year}</span>
+          <span className="text-sm text-muted-foreground">
+            {project.status === 'in-progress'
+              ? project.startDate
+              : `${project.startDate} ~ ${project.endDate}`}
+          </span>
         </div>
 
         <h3 className="mb-2 text-xl font-bold tracking-tight">{project.title}</h3>
