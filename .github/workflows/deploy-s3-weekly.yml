@@ -99,12 +99,9 @@ jobs:
           aws s3 sync dist "s3://$S3_BUCKET" \
             --delete \
             --exclude "*.html" \
-            --exclude "images/gallery" \
-            --exclude "images/gallery/*" \
-            --exclude "images/gallery/**" \
-            --exclude "images/team" \
-            --exclude "images/team/*" \
-            --exclude "images/team/**" \
+            --exclude "images" \
+            --exclude "images/*" \
+            --exclude "images/**" \
             --cache-control "public,max-age=31536000,immutable"
 
       - name: Deploy HTML (no cache)
