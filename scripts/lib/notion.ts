@@ -88,3 +88,17 @@ export async function updatePageS3Link(update: PendingLinkUpdate, logTag: string
     logTag
   )
 }
+
+export async function updatePageProperty(
+  pageId: string,
+  properties: Record<string, unknown>,
+  logTag: string
+) {
+  return notionUpdatePage(
+    pageId,
+    {
+      properties,
+    },
+    logTag
+  )
+}

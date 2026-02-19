@@ -1,20 +1,14 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-
+import { spawnSync } from 'node:child_process'
 import pLimit from 'p-limit'
-import { notionRequest } from './lib/notion.ts'
-import type {
-  ProjectNotionPage as NotionPage,
-  NotionQueryResponse,
-  ProjectPendingUpdate,
-} from './lib/types.ts'
+import { notionRequest, updatePageProperty } from './lib/notion.ts'
+import type { ProjectNotionPage as NotionPage, NotionQueryResponse } from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
-import { createThumbnail } from './lib/image-processor.ts'
 import type { Project, Screenshot } from '../src/types/project.ts'
 
 const OUTPUT_JSON_PATH = 'src/data/projects.generated.json'
-const OUTPUT_PENDING_UPDATES_PATH = 'src/data/projects.pending-updates.json'
 const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/projects/original'
 const OUTPUT_IMAGE_THUMB_DIR = 'public/images/projects/thumb'
 const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/projects/thumb'
@@ -43,8 +37,46 @@ const notionParticipantsPropertyName = 'participants'
 
 const validationPassed = '✅'
 
-// TODO: <refactor> 아래 클래스의 Notion 프로퍼티 접근 메서드는 추후 대규모 리팩토링 예정
+// TODO: <refactor> 아래는 추후 공통 lib로 빠질 수 있음
 class ImageProcessor {
+  createThumbnail(originalPath: string, thumbPath: string) {
+    const commands: Array<{ command: string; args: string[] }> = [
+      {
+        command: 'magick',
+        args: [
+          originalPath,
+          '-auto-orient',
+          '-resize',
+          `${THUMB_WIDTH}>`,
+          '-quality',
+          String(THUMB_QUALITY),
+          thumbPath,
+        ],
+      },
+      {
+        command: 'convert',
+        args: [
+          originalPath,
+          '-auto-orient',
+          '-resize',
+          `${THUMB_WIDTH}>`,
+          '-quality',
+          String(THUMB_QUALITY),
+          thumbPath,
+        ],
+      },
+    ]
+
+    for (const { command, args } of commands) {
+      const result = spawnSync(command, args, { stdio: 'ignore' })
+      if (!result.error && result.status === 0) {
+        return true
+      }
+    }
+
+    return false
+  }
+
   getFirstFileUrl(page: NotionPage, propertyName: string) {
     const property = page.properties[propertyName]
     if (property?.type !== 'files' || !property.files?.length) return null
@@ -81,10 +113,7 @@ class ImageProcessor {
     const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
 
     writeFileSync(normalizedOriginalPath, data)
-    const mbThumbCreated = createThumbnail(normalizedOriginalPath, thumbPath, {
-      width: THUMB_WIDTH,
-      quality: THUMB_QUALITY,
-    })
+    const mbThumbCreated = this.createThumbnail(normalizedOriginalPath, thumbPath)
 
     let finalUrl = ''
     if (mbThumbCreated) {
@@ -115,10 +144,7 @@ class ImageProcessor {
 
         writeFileSync(originalPath, data)
 
-        createThumbnail(originalPath, thumbPath, {
-          width: THUMB_WIDTH,
-          quality: THUMB_QUALITY,
-        })
+        this.createThumbnail(originalPath, thumbPath)
 
         newScreenshots.push({
           src: `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`,
@@ -182,18 +208,8 @@ class ProjectMapper {
 
   pickPeople(page: NotionPage, propertyName: string) {
     const property = page.properties[propertyName]
-    if (property?.type !== 'rich_text') return []
-
-    const text =
-      property.rich_text
-        ?.map((t) => t.plain_text)
-        .join('')
-        .trim() || ''
-
-    return text
-      .split(',')
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0)
+    if (property?.type !== 'people') return []
+    return property.people?.map((person) => person.name || '').filter(Boolean) || []
   }
 
   pickStatus(page: NotionPage): 'in-progress' | 'completed' {
@@ -254,7 +270,7 @@ class ProjectMapper {
     const description = this.pickRichText(page, notionDescriptionPropertyName)
     const goal = this.pickRichText(page, notionGoalPropertyName)
     const techStack = this.pickMultiSelect(page, notionTechStackPropertyName)
-    const participants = this.pickPeople(page, notionParticipantsPropertyName)
+    const members = this.pickPeople(page, notionParticipantsPropertyName)
     const github = this.pickUrl(page, notionGithubPropertyName)
     const demo = this.pickUrl(page, notionDemoPropertyName)
     const { startDate, endDate } = this.pickDate(page)
@@ -268,7 +284,7 @@ class ProjectMapper {
       description,
       goal,
       techStack,
-      participants,
+      members,
       startDate,
       endDate: endDate || '',
       thumbnail: thumbUrl || '',
@@ -355,12 +371,16 @@ async function processPage(page: NotionPage, index: number) {
     }
   }
 
-  const project = projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
+  if (Object.keys(pendingUpdates).length > 0) {
+    try {
+      await updatePageProperty(page.id, pendingUpdates, LOG_TAG)
+      console.log(`[${LOG_TAG}] Updated properties for ${title}`)
+    } catch (e) {
+      console.error(`[${LOG_TAG}] Failed to update Notion properties for ${title}:`, e)
+    }
+  }
 
-  const pendingUpdate: ProjectPendingUpdate | null =
-    Object.keys(pendingUpdates).length > 0 ? { pageId: page.id, properties: pendingUpdates } : null
-
-  return { project, pendingUpdate }
+  return projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
 }
 
 async function run() {
@@ -382,22 +402,14 @@ async function run() {
   )
 
   const limit = pLimit(CONCURRENT_LIMIT)
-  const results = await Promise.all(
+  const projects = await Promise.all(
     pages.map((page, index) => limit(() => processPage(page, index + 1)))
   )
-
-  const projects = results.map((r) => r.project)
-  const pendingUpdates = results
-    .map((r) => r.pendingUpdate)
-    .filter((u): u is ProjectPendingUpdate => u !== null)
 
   // Save JSON
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(projects, null, 2)}\n`)
-  writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
-
   console.log(`[${LOG_TAG}] Synced ${projects.length} project(s).`)
-  console.log(`[${LOG_TAG}] Pending Notion updates: ${pendingUpdates.length}`)
 }
 
 run().catch((error: unknown) => {

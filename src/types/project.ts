@@ -11,7 +11,7 @@ export interface ProjectBase {
   title: string
   thumbnail: string
   techStack: string[]
-  participants: string[]
+  members: string[]
   goal: string
   github?: string
   demo?: string

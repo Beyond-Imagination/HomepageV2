@@ -41,6 +41,18 @@ export type GalleryNotionPage = {
   cover?: NotionFile
 }
 
+export type NotionQueryResponse<P> = {
+  results: P[]
+  has_more: boolean
+  next_cursor: string | null
+}
+
+export type PendingLinkUpdate = {
+  pageId: string
+  link: string
+  propertyType: 'url' | 'rich_text'
+}
+
 export type FaqNotionProperty = {
   type: string
   title?: Array<{ plain_text?: string }>
@@ -53,18 +65,6 @@ export type FaqNotionPage = {
   id: string
   created_time: string
   properties: Record<string, FaqNotionProperty>
-}
-
-export type NotionQueryResponse<P> = {
-  results: P[]
-  has_more: boolean
-  next_cursor: string | null
-}
-
-export type PendingLinkUpdate = {
-  pageId: string
-  link: string
-  propertyType: 'url' | 'rich_text'
 }
 
 export type FaqItem = {

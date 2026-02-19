@@ -9,7 +9,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from '@/components/ui/carousel'
-import { Project, Screenshot } from './project-card'
+import { Project, Screenshot } from '@/types/project'
 import { cn } from '@/lib/utils'
 import { GitHubIcon } from '@/components/icons/github-icon'
 
