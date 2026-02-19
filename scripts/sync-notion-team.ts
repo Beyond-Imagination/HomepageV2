@@ -1,21 +1,25 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { dirname, extname, join } from 'node:path'
+import { dirname, join } from 'node:path'
 import pLimit from 'p-limit'
+import { notionRequest } from './lib/notion.ts'
+import type {
+  NotionQueryResponse,
+  PendingLinkUpdate,
+  TeamNotionPage as NotionPage,
+  TeamNotionProperty as NotionProperty,
+} from './lib/types.ts'
+import { CONCURRENT_LIMIT, notionS3LinkPropertyName, notionToken } from './lib/constants.ts'
+import { downloadImage, guessExtension } from './lib/utils.ts'
 
-const NOTION_BASE_URL = 'https://api.notion.com/v1'
-const NOTION_VERSION = '2022-06-28'
 const OUTPUT_JSON_PATH = 'src/data/team.generated.json'
 const OUTPUT_PENDING_UPDATES_PATH = 'src/data/team.pending-link-updates.json'
 const OUTPUT_IMAGE_DIR = 'public/images/team'
 const OUTPUT_IMAGE_PUBLIC_BASE_PATH = '/images/team'
 const IMAGE_WIDTH = 512
 const IMAGE_QUALITY = 80
-const CONCURRENT_LIMIT = 5
-const NOTION_API_MAX_RETRIES = 3
-const NOTION_API_RETRY_DELAY_MS = 500
+const LOG_TAG = 'sync-notion-team'
 
-const notionToken = process.env.NOTION_TOKEN
 const notionDatabaseId = process.env.NOTION_TEAM_DATABASE_ID
 
 const notionJoinDatePropertyName = '가입일'
@@ -27,32 +31,12 @@ const notionLeaveDatePropertyName = '탈퇴일'
 const notionBioPropertyName = '한 줄 소개'
 const notionImagePropertyName = '프로필 사진'
 const notionGitHubPropertyName = 'github'
-const notionS3LinkPropertyName = 'S3 link'
 
-type NotionFile = {
-  type: 'external' | 'file'
-  external?: { url: string }
-  file?: { url: string }
-}
-
-type NotionProperty = {
-  type: string
-  files?: NotionFile[]
-  title?: Array<{ plain_text?: string }>
-  rich_text?: Array<{ plain_text?: string }>
-  date?: { start?: string }
-  checkbox?: boolean
-  select?: { name?: string }
-  multi_select?: Array<{ name?: string }>
-  url?: string
-  email?: string
-}
-
-type NotionPage = {
-  id: string
-  properties: Record<string, NotionProperty>
-  cover?: NotionFile
-}
+const MemberType = {
+  Leader: '팀 리더',
+  Member: '멤버',
+  Alumni: '졸업 멤버',
+} as const
 
 type TeamMember = {
   id: number
@@ -70,74 +54,20 @@ type TeamMember = {
   leaveDate: string | null
 }
 
-type PendingLinkUpdate = {
-  pageId: string
-  link: string
-  propertyType: 'url' | 'rich_text'
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms)
-  })
-}
-
-async function notionRequest(path: string, body: Record<string, unknown>) {
-  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
-    try {
-      const response = await fetch(`${NOTION_BASE_URL}${path}`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${notionToken}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (response.ok) {
-        return (await response.json()) as {
-          results: NotionPage[]
-          has_more: boolean
-          next_cursor: string | null
-        }
-      }
-
-      const responseText = await response.text()
-      const isRetryable = response.status === 429 || response.status >= 500
-      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
-        throw new Error(`Notion API request failed: ${response.status} ${responseText}`)
-      }
-
-      const retryAfterMs = NOTION_API_RETRY_DELAY_MS
-      console.warn(
-        `[sync-notion-team] Notion request retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
-      )
-      await sleep(retryAfterMs)
-    } catch (error) {
-      if (attempt === NOTION_API_MAX_RETRIES) {
-        const message = error instanceof Error ? error.message : String(error)
-        throw new Error(`Notion API request failed after retries: ${message}`)
-      }
-      console.warn(
-        `[sync-notion-team] Notion request network retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${NOTION_API_RETRY_DELAY_MS}ms`
-      )
-      await sleep(NOTION_API_RETRY_DELAY_MS)
-    }
-  }
-  throw new Error('Notion API request failed: retry loop terminated unexpectedly')
-}
-
 async function fetchDatabasePages() {
   const pages: NotionPage[] = []
   let startCursor: string | undefined = undefined
 
   while (true) {
-    const data = await notionRequest(`/databases/${notionDatabaseId}/query`, {
-      page_size: 100,
-      start_cursor: startCursor,
-      sorts: [{ property: notionJoinDatePropertyName, direction: 'ascending' }],
-    })
+    const data: NotionQueryResponse<NotionPage> = await notionRequest<NotionPage>(
+      `/databases/${notionDatabaseId}/query`,
+      {
+        page_size: 100,
+        start_cursor: startCursor,
+        sorts: [{ property: notionJoinDatePropertyName, direction: 'ascending' }],
+      },
+      LOG_TAG
+    )
 
     pages.push(...data.results)
 
@@ -210,18 +140,6 @@ function pickS3LinkPropertyType(page: NotionPage): 'url' | 'rich_text' | null {
   return null
 }
 
-async function downloadImage(url: string) {
-  const response = await fetch(url)
-  if (!response.ok) {
-    throw new Error(`Image download failed: ${response.status}`)
-  }
-  const arrayBuffer = await response.arrayBuffer()
-  return {
-    contentType: response.headers.get('content-type'),
-    data: Buffer.from(arrayBuffer),
-  }
-}
-
 function resizeImage(originalPath: string, resizedPath: string) {
   const args = [
     originalPath,
@@ -247,18 +165,6 @@ function resizeImage(originalPath: string, resizedPath: string) {
   return false
 }
 
-function guessExtension(url: string, contentType: string | null) {
-  const fromUrl = extname(new URL(url).pathname)
-  if (fromUrl) return fromUrl.toLowerCase()
-
-  if (!contentType) return '.jpg'
-  if (contentType.includes('png')) return '.png'
-  if (contentType.includes('webp')) return '.webp'
-  if (contentType.includes('gif')) return '.gif'
-
-  return '.jpg'
-}
-
 async function processPage(
   page: NotionPage,
   index: number
@@ -272,7 +178,7 @@ async function processPage(
   const name = pickPlainText(titleProperty)
 
   if (!name) {
-    console.warn(`[sync-notion-team] Page ${page.id} skipped: missing name (title).`)
+    console.warn(`[${LOG_TAG}] Page ${page.id} skipped: missing name (title).`)
     return { member: null, pendingUpdate: null }
   }
 
@@ -283,13 +189,11 @@ async function processPage(
   const pastProjectsRaw = pickSelect(props[notionPastProjectsPropertyName])
 
   // 역할 결정
-  let role = 'Member'
+  let role: string = MemberType.Member
   if (leaveDate) {
-    role = '탈퇴 멤버'
+    role = MemberType.Alumni
   } else if (isTeamLead) {
-    role = 'Team Lead'
-  } else if (projectLeads.length > 0) {
-    role = 'Project Lead'
+    role = MemberType.Leader
   }
 
   // 프로젝트 목록 통합
@@ -339,7 +243,7 @@ async function processPage(
           finalS3Link = `${OUTPUT_IMAGE_PUBLIC_BASE_PATH}/${outputFilename}`
         } else {
           console.warn(
-            `[sync-notion-team] Failed to convert/resize image for ${name}. Using original extension.`
+            `[${LOG_TAG}] Failed to convert/resize image for ${name}. Using original extension.`
           )
           const fallbackFilename = `${page.id}${srcExtension}`
           const fallbackPath = join(OUTPUT_IMAGE_DIR, fallbackFilename)
@@ -358,11 +262,11 @@ async function processPage(
           }
         } else {
           console.warn(
-            `[sync-notion-team] Page ${page.id}: "${notionS3LinkPropertyName}" property missing or invalid type. Cannot update S3 link.`
+            `[${LOG_TAG}] Page ${page.id}: "${notionS3LinkPropertyName}" property missing or invalid type. Cannot update S3 link.`
           )
         }
       } catch (error) {
-        console.error(`[sync-notion-team] Failed to process image for ${name}:`, error)
+        console.error(`[${LOG_TAG}] Failed to process image for ${name}:`, error)
       }
     }
   }
@@ -385,17 +289,14 @@ async function processPage(
 
 function getRolePriority(member: TeamMember): number {
   switch (member.role) {
-    case 'Team Lead':
+    case MemberType.Leader:
       return 1
-    case 'Project Lead':
+    case MemberType.Member:
       return 2
-    case 'Member':
+    case MemberType.Alumni:
       return 3
-    case '탈퇴 멤버':
-      return 4
     default:
-      if (member.role.startsWith('Member')) return 3
-      return 5
+      return 4
   }
 }
 
@@ -406,14 +307,14 @@ async function run() {
     )
   }
 
-  console.log('[sync-notion-team] Fetching all members from Notion database...')
+  console.log(`[${LOG_TAG}] Fetching all members from Notion database...`)
   const pages = await fetchDatabasePages()
 
   rmSync(OUTPUT_IMAGE_DIR, { recursive: true, force: true })
   mkdirSync(OUTPUT_IMAGE_DIR, { recursive: true })
 
   console.log(
-    `[sync-notion-team] Processing ${pages.length} members with concurrency limit: ${CONCURRENT_LIMIT}`
+    `[${LOG_TAG}] Processing ${pages.length} members with concurrency limit: ${CONCURRENT_LIMIT}`
   )
 
   const limit = pLimit(CONCURRENT_LIMIT)
@@ -445,19 +346,19 @@ async function run() {
   })
 
   if (members.length === 0) {
-    console.warn('[sync-notion-team] No members were synced from Notion.')
+    console.warn('[${LOG_TAG}] No members were synced from Notion.')
   }
 
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(members, null, 2)}\n`)
   writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
 
-  console.log(`[sync-notion-team] Synced ${members.length} member(s).`)
-  console.log(`[sync-notion-team] Pending Notion link updates: ${pendingUpdates.length}`)
+  console.log(`[${LOG_TAG}] Synced ${members.length} member(s).`)
+  console.log(`[${LOG_TAG}] Pending Notion link updates: ${pendingUpdates.length}`)
 }
 
 run().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error)
-  console.error('[sync-notion-team] Failed:', message)
+  console.error(`[${LOG_TAG}] Failed:`, message)
   process.exit(1)
 })
