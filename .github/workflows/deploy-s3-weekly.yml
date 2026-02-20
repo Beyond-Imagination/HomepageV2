@@ -28,6 +28,7 @@ jobs:
       NOTION_GALLERY_DATABASE_ID: ${{ secrets.NOTION_GALLERY_DATABASE_ID }}
       NOTION_TEAM_DATABASE_ID: ${{ secrets.NOTION_TEAM_DATABASE_ID }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      VITE_DISCORD_CONTACT_WEBHOOK_URL: ${{ secrets.VITE_DISCORD_CONTACT_WEBHOOK_URL }}
     steps:
       - name: Start timer
         id: start_timer

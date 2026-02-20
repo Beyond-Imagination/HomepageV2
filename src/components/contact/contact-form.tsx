@@ -10,21 +10,80 @@ import { Send, CheckCircle } from 'lucide-react'
 export function ContactForm() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const webhookUrl = import.meta.env.VITE_DISCORD_CONTACT_WEBHOOK_URL as string | undefined
+
+  const categoryLabels: Record<string, string> = {
+    membership: '멤버 지원',
+    collaboration: '협업 제안',
+    general: '일반 문의',
+  }
+
+  const trimField = (value: FormDataEntryValue | null) =>
+    typeof value === 'string' ? value.trim() : ''
+  const limit = (value: string, max: number) =>
+    value.length > max ? `${value.slice(0, max - 1)}…` : value
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    setSubmitError(null)
     setIsSubmitting(true)
 
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    const formData = new FormData(e.currentTarget)
+    const name = trimField(formData.get('name'))
+    const email = trimField(formData.get('email'))
+    const subject = trimField(formData.get('subject'))
+    const category = trimField(formData.get('category'))
+    const message = trimField(formData.get('message'))
+    const categoryLabel = (categoryLabels[category] ?? category) || '미분류'
 
-    setIsSubmitting(false)
-    setIsSubmitted(true)
+    try {
+      if (!webhookUrl) {
+        throw new Error('VITE_DISCORD_CONTACT_WEBHOOK_URL is missing')
+      }
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          embeds: [
+            {
+              title: '📬 새로운 문의가 도착했습니다!',
+              color: 0x5865f2,
+              fields: [
+                { name: '이름', value: limit(name || '-', 1024), inline: true },
+                { name: '회신 이메일', value: limit(email || '-', 1024) },
+                { name: '문의 유형', value: limit(categoryLabel, 1024) },
+                { name: '제목', value: limit(subject || '-', 1024) },
+                { name: '문의 내용', value: limit(message || '-', 1024) },
+              ],
+              timestamp: new Date().toISOString(),
+            },
+          ],
+        }),
+      })
+
+      if (!response.ok) {
+        const responseText = await response.text()
+        throw new Error(`Discord webhook failed: ${response.status} ${responseText}`)
+      }
+
+      setIsSubmitted(true)
+      e.currentTarget.reset()
+    } catch (error) {
+      console.error('[contact-form] submit failed', error)
+      setSubmitError('문의 전송에 실패했습니다. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (isSubmitted) {
     return (
-      <div className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-[400px]">
+      <div className="bg-card border border-border rounded-2xl p-8 flex flex-col items-center justify-center text-center min-h-100">
         <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
           <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
@@ -35,7 +94,14 @@ export function ContactForm() {
           메시지가 전송되었습니다
         </h3>
         <p className="text-muted-foreground mb-6">빠른 시일 내에 답변드리겠습니다.</p>
-        <Button type="button" variant="outline" onClick={() => setIsSubmitted(false)}>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => {
+            setSubmitError(null)
+            setIsSubmitted(false)
+          }}
+        >
           새 메시지 작성
         </Button>
       </div>
@@ -89,9 +155,8 @@ export function ContactForm() {
             className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">선택해주세요</option>
-            <option value="membership">멤버십 문의</option>
+            <option value="membership">멤버 지원</option>
             <option value="collaboration">협업 제안</option>
-            <option value="sponsorship">스폰서십</option>
             <option value="general">일반 문의</option>
           </select>
         </div>
@@ -125,6 +190,7 @@ export function ContactForm() {
             </>
           )}
         </Button>
+        {submitError && <p className="text-sm text-destructive">{submitError}</p>}
       </form>
     </div>
   )

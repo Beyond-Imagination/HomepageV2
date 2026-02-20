@@ -65,6 +65,12 @@ pnpm format:check
 pnpm build
 ```
 
+### 문의 폼 Discord 웹훅 설정
+
+문의 폼 전송을 활성화하려면 프런트 환경변수에 Discord 웹훅 URL을 설정하세요.
+
+- `VITE_DISCORD_CONTACT_WEBHOOK_URL`
+
 ### Git Commit 시 자동 실행
 
 커밋할 때마다 자동으로 다음 작업이 실행됩니다:
@@ -123,6 +129,7 @@ pnpm lint:fix
 - `NOTION_TOKEN`
 - `NOTION_GALLERY_DATABASE_ID`
 - `DISCORD_WEBHOOK_URL` (배포 완료 시 결과/소요시간 요약 알림용)
+- `VITE_DISCORD_CONTACT_WEBHOOK_URL` (문의 폼 Discord 전송용, 프런트 번들에 포함됨)
 
 선택:
 
