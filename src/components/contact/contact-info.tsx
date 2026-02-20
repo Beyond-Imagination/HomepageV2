@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog'
 import { GitHubIcon } from '@/components/icons/github-icon'
 import generatedFaqItems from '@/data/contact-faq.generated.json'
+import { FaqItem } from '../../../scripts/lib/types.ts'
 
 const contactDetails = [
   {
@@ -46,11 +47,6 @@ const socialLinks = [
     href: 'https://discord.com',
   },
 ]
-
-type FaqItem = {
-  question: string
-  answer: string
-}
 
 const faqItems = generatedFaqItems as FaqItem[]
 const URL_PATTERN = /(https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'*+,;=%]+)/g

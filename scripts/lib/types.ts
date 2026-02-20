@@ -66,3 +66,8 @@ export type PendingLinkUpdate = {
   link: string
   propertyType: 'url' | 'rich_text'
 }
+
+export type FaqItem = {
+  question: string
+  answer: string
+}

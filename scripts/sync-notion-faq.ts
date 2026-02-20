@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { notionRequest } from './lib/notion.ts'
 import type {
+  FaqItem,
   FaqNotionPage as NotionPage,
   FaqNotionProperty as NotionProperty,
   NotionQueryResponse,
@@ -14,11 +15,6 @@ const notionDatabaseId = process.env.NOTION_FAQ_DATABASE_ID
 
 const notionQuestionPropertyName = '질문'
 const notionAnswerPropertyName = '답변'
-
-type FaqItem = {
-  question: string
-  answer: string
-}
 
 function toPlainText(property?: NotionProperty): string {
   if (!property) return ''
