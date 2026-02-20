@@ -79,8 +79,11 @@ async function fetchDatabasePages() {
 }
 
 async function run() {
-  if (!notionToken || !notionDatabaseId) {
-    throw new Error('NOTION_TOKEN and/or NOTION_FAQ_DATABASE_ID environment variables are missing.')
+  if (!notionToken) {
+    throw new Error('NOTION_TOKEN environment variable is missing.')
+  }
+  if (!notionDatabaseId) {
+    throw new Error('NOTION_FAQ_DATABASE_ID environment variable is missing.')
   }
 
   console.log(`[${LOG_TAG}] Fetching FAQ entries from Notion database...`)
