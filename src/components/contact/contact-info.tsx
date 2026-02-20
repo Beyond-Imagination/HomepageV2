@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { GitHubIcon } from '@/components/icons/github-icon'
+import generatedFaqItems from '@/data/contact-faq.generated.json'
 
 const contactDetails = [
   {
@@ -45,26 +46,15 @@ const socialLinks = [
   },
 ]
 
-const faqItems = [
-  {
-    question: '누구나 참여할 수 있나요?',
-    answer:
-      '네! Beyond Imagination은 기술과 창의성에 관심이 있는 모든 분들을 환영합니다. 학생, 개발자, 디자이너, 기획자 등 다양한 배경을 가진 분들이 함께 활동하고 있습니다. 경험이나 실력에 관계없이 배우고자 하는 열정만 있다면 누구나 참여하실 수 있습니다.',
-  },
-  {
-    question: '회비가 있나요?',
-    answer:
-      '아니요, Beyond Imagination은 비영리 커뮤니티로 운영되며 회비가 없습니다. 다만, 일부 오프라인 행사나 워크샵의 경우 장소 대관비나 다과비 등을 참가자들이 공동으로 부담하는 경우가 있을 수 있습니다. 이런 경우에도 사전에 공지되며, 부담 없는 수준으로 진행됩니다.',
-  },
-  {
-    question: '온라인으로 참여할 수 있나요?',
-    answer:
-      '물론입니다! 정기 모임은 오프라인으로 진행되지만, Discord를 통해 온라인으로도 활발히 소통하고 있습니다. 스터디, 코드 리뷰, 프로젝트 협업 등 대부분의 활동이 온라인으로도 가능합니다. 지역이나 시간 제약 없이 편하게 참여하실 수 있습니다.',
-  },
-]
+type FaqItem = {
+  question: string
+  answer: string
+}
+
+const faqItems = generatedFaqItems as FaqItem[]
 
 export function ContactInfo() {
-  const [selectedFaq, setSelectedFaq] = useState<{ question: string; answer: string } | null>(null)
+  const [selectedFaq, setSelectedFaq] = useState<FaqItem | null>(null)
 
   return (
     <div className="space-y-8">
@@ -148,7 +138,9 @@ export function ContactInfo() {
               onClick={() => setSelectedFaq(faq)}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-              <span className="text-primary-foreground/90 hover:text-primary-foreground">{faq.question}</span>
+              <span className="text-primary-foreground/90 hover:text-primary-foreground">
+                {faq.question}
+              </span>
             </li>
           ))}
         </ul>
@@ -171,7 +163,7 @@ export function ContactInfo() {
             </DialogHeader>
           </div>
           <div className="p-8 pt-6">
-            <DialogDescription className="text-base leading-relaxed text-foreground/80">
+            <DialogDescription className="text-base leading-relaxed text-foreground/80 whitespace-pre-line">
               {selectedFaq?.answer}
             </DialogDescription>
           </div>
