@@ -1,4 +1,5 @@
 import { Mail, MapPin, Clock, MessageCircle } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import {
   Dialog,
@@ -52,6 +53,28 @@ type FaqItem = {
 }
 
 const faqItems = generatedFaqItems as FaqItem[]
+const URL_PATTERN = /(https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'*+,;=%]+)/g
+const IS_URL_PATTERN = /^https?:\/\/[A-Za-z0-9\-._~:/?#[\]@!$&'*+,;=%]+$/
+
+function renderAnswerWithLinks(text: string): ReactNode[] {
+  return text.split(URL_PATTERN).map((part, index) => {
+    if (!part) return null
+    if (IS_URL_PATTERN.test(part)) {
+      return (
+        <a
+          key={`${part}-${index}`}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-accent underline underline-offset-2 hover:opacity-80 transition-opacity"
+        >
+          {part}
+        </a>
+      )
+    }
+    return <span key={`text-${index}`}>{part}</span>
+  })
+}
 
 export function ContactInfo() {
   const [selectedFaq, setSelectedFaq] = useState<FaqItem | null>(null)
@@ -164,7 +187,7 @@ export function ContactInfo() {
           </div>
           <div className="p-8 pt-6">
             <DialogDescription className="text-base leading-relaxed text-foreground/80 whitespace-pre-line">
-              {selectedFaq?.answer}
+              {selectedFaq ? renderAnswerWithLinks(selectedFaq.answer) : null}
             </DialogDescription>
           </div>
         </DialogContent>
