@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Globe, Mail } from 'lucide-react'
 import { GitHubIcon } from '@/components/icons/github-icon'
-import { TeamMember } from '@/types/teamMember.ts'
+import { TeamMember } from '@/types/teamMember'
 import generatedTeamMembers from '@/data/team.generated.json'
 
 const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]

@@ -2,13 +2,13 @@ import { motion } from 'framer-motion'
 import { useInView } from 'framer-motion'
 import { useRef, useMemo } from 'react'
 import { Rocket, Users, Calendar, GraduationCap } from 'lucide-react'
-import { TeamMember } from '@/types/teamMember.ts'
+import { TeamMember } from '@/types/teamMember'
 import generatedTeamMembers from '@/data/team.generated.json'
 
 const FOUNDING_DATE = new Date('2017-03-01')
 
 const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]
-const activeTeamMembers = generatedTeamMembers.filter((member) => !member.leaveDate)
+const activeTeamMembers = teamMembers.filter((member) => !member.leaveDate)
 const totalMemberCount = teamMembers.length
 const activeMemberCount = activeTeamMembers.length
 
