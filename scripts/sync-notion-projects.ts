@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+
 import pLimit from 'p-limit'
 import { notionRequest } from './lib/notion.ts'
 import type {
@@ -10,6 +10,7 @@ import type {
 } from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
+import { createThumbnail } from './lib/image-processor.ts'
 import type { Project, Screenshot } from '../src/types/project.ts'
 
 const OUTPUT_JSON_PATH = 'src/data/projects.generated.json'
@@ -42,46 +43,8 @@ const notionParticipantsPropertyName = 'participants'
 
 const validationPassed = '✅'
 
-// TODO: <refactor> 아래는 추후 공통 lib로 빠질 수 있음
+// TODO: <refactor> 아래 클래스의 Notion 프로퍼티 접근 메서드는 추후 대규모 리팩토링 예정
 class ImageProcessor {
-  createThumbnail(originalPath: string, thumbPath: string) {
-    const commands: Array<{ command: string; args: string[] }> = [
-      {
-        command: 'magick',
-        args: [
-          originalPath,
-          '-auto-orient',
-          '-resize',
-          `${THUMB_WIDTH}>`,
-          '-quality',
-          String(THUMB_QUALITY),
-          thumbPath,
-        ],
-      },
-      {
-        command: 'convert',
-        args: [
-          originalPath,
-          '-auto-orient',
-          '-resize',
-          `${THUMB_WIDTH}>`,
-          '-quality',
-          String(THUMB_QUALITY),
-          thumbPath,
-        ],
-      },
-    ]
-
-    for (const { command, args } of commands) {
-      const result = spawnSync(command, args, { stdio: 'ignore' })
-      if (!result.error && result.status === 0) {
-        return true
-      }
-    }
-
-    return false
-  }
-
   getFirstFileUrl(page: NotionPage, propertyName: string) {
     const property = page.properties[propertyName]
     if (property?.type !== 'files' || !property.files?.length) return null
@@ -118,7 +81,10 @@ class ImageProcessor {
     const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
 
     writeFileSync(normalizedOriginalPath, data)
-    const mbThumbCreated = this.createThumbnail(normalizedOriginalPath, thumbPath)
+    const mbThumbCreated = createThumbnail(normalizedOriginalPath, thumbPath, {
+      width: THUMB_WIDTH,
+      quality: THUMB_QUALITY,
+    })
 
     let finalUrl = ''
     if (mbThumbCreated) {
@@ -149,7 +115,10 @@ class ImageProcessor {
 
         writeFileSync(originalPath, data)
 
-        this.createThumbnail(originalPath, thumbPath)
+        createThumbnail(originalPath, thumbPath, {
+          width: THUMB_WIDTH,
+          quality: THUMB_QUALITY,
+        })
 
         newScreenshots.push({
           src: `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`,
