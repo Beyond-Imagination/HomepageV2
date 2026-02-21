@@ -11,6 +11,7 @@
     "sync:gallery:apply-links": "node --experimental-strip-types scripts/apply-notion-gallery-links.ts",
     "sync:team": "node -r dotenv/config --experimental-strip-types scripts/sync-notion-team.ts",
     "sync:team:apply-links": "node --experimental-strip-types scripts/apply-notion-team-links.ts",
+    "sync:faq": "node --experimental-strip-types scripts/sync-notion-faq.ts",
     "build": "tsc && vite build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -41,6 +41,20 @@ export type GalleryNotionPage = {
   cover?: NotionFile
 }
 
+export type FaqNotionProperty = {
+  type: string
+  title?: Array<{ plain_text?: string }>
+  rich_text?: Array<{ plain_text?: string }>
+  checkbox?: boolean
+  number?: number | null
+}
+
+export type FaqNotionPage = {
+  id: string
+  created_time: string
+  properties: Record<string, FaqNotionProperty>
+}
+
 export type NotionQueryResponse<P> = {
   results: P[]
   has_more: boolean
@@ -77,4 +91,9 @@ export type ProjectNotionPage = {
   created_time: string
   properties: Record<string, ProjectNotionProperty>
   cover?: NotionFile
+}
+
+export type FaqItem = {
+  question: string
+  answer: string
 }
