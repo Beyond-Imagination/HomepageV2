@@ -27,6 +27,7 @@ jobs:
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       NOTION_GALLERY_DATABASE_ID: ${{ secrets.NOTION_GALLERY_DATABASE_ID }}
       NOTION_TEAM_DATABASE_ID: ${{ secrets.NOTION_TEAM_DATABASE_ID }}
+      NOTION_FAQ_DATABASE_ID: ${{ secrets.NOTION_FAQ_DATABASE_ID }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       VITE_DISCORD_CONTACT_WEBHOOK_URL: ${{ secrets.VITE_DISCORD_CONTACT_WEBHOOK_URL }}
     steps:
@@ -70,6 +71,10 @@ jobs:
       - name: Sync team from Notion
         id: sync_team
         run: pnpm sync:team
+
+      - name: Sync FAQ from Notion
+        id: sync_faq
+        run: pnpm sync:faq
 
       - name: Upload fetched Notion images
         id: upload_gallery_images
@@ -126,6 +131,7 @@ jobs:
           START_EPOCH: ${{ steps.start_timer.outputs.epoch }}
           OUTCOME_SYNC_GALLERY: ${{ steps.sync_gallery.outcome }}
           OUTCOME_SYNC_TEAM: ${{ steps.sync_team.outcome }}
+          OUTCOME_SYNC_FAQ: ${{ steps.sync_faq.outcome }}
           OUTCOME_UPLOAD_GALLERY_JSON_ARTIFACT: ${{ steps.upload_gallery_json_artifact.outcome }}
           OUTCOME_INSTALL_IMAGEMAGICK: ${{ steps.install_imagemagick.outcome }}
           OUTCOME_UPLOAD_GALLERY_IMAGES: ${{ steps.upload_gallery_images.outcome }}
@@ -152,6 +158,7 @@ jobs:
           [ "$OUTCOME_INSTALL_IMAGEMAGICK" = "failure" ] && failed_steps+=("Install ImageMagick")
           [ "$OUTCOME_SYNC_GALLERY" = "failure" ] && failed_steps+=("Sync gallery from Notion")
           [ "$OUTCOME_SYNC_TEAM" = "failure" ] && failed_steps+=("Sync team from Notion")
+          [ "$OUTCOME_SYNC_FAQ" = "failure" ] && failed_steps+=("Sync FAQ from Notion")
           [ "$OUTCOME_UPLOAD_GALLERY_JSON_ARTIFACT" = "failure" ] && failed_steps+=("Upload gallery generated JSON artifact")
           [ "$OUTCOME_UPLOAD_GALLERY_IMAGES" = "failure" ] && failed_steps+=("Upload fetched Notion images")
           [ "$OUTCOME_APPLY_NOTION_S3_LINKS" = "failure" ] && failed_steps+=("Apply Notion S3 links")
