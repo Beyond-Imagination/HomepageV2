@@ -2,8 +2,15 @@ import { motion } from 'framer-motion'
 import { useInView } from 'framer-motion'
 import { useRef, useMemo } from 'react'
 import { Rocket, Users, Calendar, GraduationCap } from 'lucide-react'
+import { TeamMember } from '@/types/teamMember.ts'
+import generatedTeamMembers from '@/data/team.generated.json'
 
 const FOUNDING_DATE = new Date('2017-03-01')
+
+const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]
+const activeTeamMembers = generatedTeamMembers.filter((member) => !member.leaveDate)
+const totalMemberCount = teamMembers.length
+const activeMemberCount = activeTeamMembers.length
 
 export function StatsSection() {
   const yearsSinceFounding = useMemo(() => {
@@ -23,13 +30,13 @@ export function StatsSection() {
       },
       {
         icon: Users,
-        value: '13',
+        value: activeMemberCount,
         label: 'Active Members',
         description: '활동 중인 팀원',
       },
       {
         icon: GraduationCap,
-        value: '18',
+        value: totalMemberCount,
         label: 'Total Members',
         description: '함께한 사람들',
       },
