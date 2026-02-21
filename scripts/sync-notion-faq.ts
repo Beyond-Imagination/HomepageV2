@@ -59,7 +59,7 @@ function pickSortWeight(page: NotionPage): number {
     return number
   }
 
-  return 2 ** 32 - 1 // 지정하지 않으면 가장 마지막으로
+  return Number.MAX_SAFE_INTEGER // 지정하지 않으면 가장 마지막으로
 }
 
 async function fetchDatabasePages() {
