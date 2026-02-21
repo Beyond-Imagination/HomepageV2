@@ -70,4 +70,5 @@ export type PendingLinkUpdate = {
 export type FaqItem = {
   question: string
   answer: string
+  sortWeight: number
 }
