@@ -96,11 +96,13 @@ pnpm lint:fix
 
 1. GitHub Actions 스케줄 실행
 2. Notion 갤러리 동기화 + 썸네일 생성 (`pnpm sync:gallery`)
-3. S3 이미지 업로드
-4. Notion `S3 link` 반영 (`pnpm sync:gallery:apply-links`)
-5. 프런트 빌드 (`pnpm build`)
-6. 정적 파일/HTML 배포
-7. (선택) CloudFront 무효화
+3. Notion 팀 정보 동기화 (`pnpm sync:team`)
+4. Notion FAQ 동기화 (`pnpm sync:faq`)
+5. S3 이미지 업로드
+6. Notion `S3 link` 반영 (`pnpm sync:gallery:apply-links`, `pnpm sync:team:apply-links`)
+7. 프런트 빌드 (`pnpm build`)
+8. 정적 파일/HTML 배포
+9. (선택) CloudFront 무효화
 
 ### 스케줄
 
@@ -122,6 +124,8 @@ pnpm lint:fix
 - `S3_BUCKET`
 - `NOTION_TOKEN`
 - `NOTION_GALLERY_DATABASE_ID`
+- `NOTION_TEAM_DATABASE_ID`
+- `NOTION_FAQ_DATABASE_ID`
 - `DISCORD_WEBHOOK_URL` (배포 완료 시 결과/소요시간 요약 알림용)
 
 선택:
@@ -170,6 +174,7 @@ pnpm lint:fix
 
 - HTML은 no-cache, 나머지 정적 파일은 장기 캐시로 업로드합니다.
 - Notion DB는 페이지네이션으로 전체 페이지를 모두 조회합니다(제한 없음).
+- Contact FAQ는 Notion DB에서 `src/data/contact-faq.generated.json`으로 생성되며, Contact 화면에서 해당 JSON을 사용합니다.
 - `S3 link` 속성에는 원본 경로(`/images/gallery/original/...`)를 저장해 사용합니다.
 - `S3 link`가 비어있으면 Notion 이미지를 내려받아 배포 대상에 포함하고, `S3 link`에 상대 경로를 기록합니다.
 - 썸네일은 `/images/gallery/thumb/...` 경로로 생성되며, 목록에서는 썸네일을 사용하고 클릭 시 원본을 불러옵니다.
