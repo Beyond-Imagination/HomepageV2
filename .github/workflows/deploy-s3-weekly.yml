@@ -27,6 +27,7 @@ jobs:
       NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
       NOTION_GALLERY_DATABASE_ID: ${{ secrets.NOTION_GALLERY_DATABASE_ID }}
       NOTION_TEAM_DATABASE_ID: ${{ secrets.NOTION_TEAM_DATABASE_ID }}
+      NOTION_PROJECTS_DATABASE_ID: ${{ secrets.NOTION_PROJECTS_DATABASE_ID }}
       NOTION_FAQ_DATABASE_ID: ${{ secrets.NOTION_FAQ_DATABASE_ID }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       VITE_DISCORD_CONTACT_WEBHOOK_URL: ${{ secrets.VITE_DISCORD_CONTACT_WEBHOOK_URL }}
@@ -72,6 +73,10 @@ jobs:
         id: sync_team
         run: pnpm sync:team
 
+      - name: Sync projects from Notion
+        id: sync_projects
+        run: pnpm sync:projects
+
       - name: Sync FAQ from Notion
         id: sync_faq
         run: pnpm sync:faq
@@ -85,6 +90,9 @@ jobs:
           if [ -d "public/images/team" ]; then
             aws s3 sync public/images/team "s3://$S3_BUCKET/images/team" --cache-control "public,max-age=31536000,immutable"
           fi
+          if [ -d "public/images/projects" ]; then
+            aws s3 sync public/images/projects "s3://$S3_BUCKET/images/projects" --cache-control "public,max-age=31536000,immutable"
+          fi
 
       - name: Apply Notion S3 links
         id: apply_notion_s3_links
@@ -93,6 +101,10 @@ jobs:
       - name: Apply Notion team S3 links
         id: apply_notion_team_s3_links
         run: pnpm sync:team:apply-links
+
+      - name: Apply Notion project updates
+        id: apply_notion_project_updates
+        run: pnpm sync:projects:apply-updates
 
       - name: Build
         id: build
@@ -137,6 +149,8 @@ jobs:
           OUTCOME_UPLOAD_GALLERY_IMAGES: ${{ steps.upload_gallery_images.outcome }}
           OUTCOME_APPLY_NOTION_S3_LINKS: ${{ steps.apply_notion_s3_links.outcome }}
           OUTCOME_APPLY_NOTION_TEAM_S3_LINKS: ${{ steps.apply_notion_team_s3_links.outcome }}
+          OUTCOME_SYNC_PROJECTS: ${{ steps.sync_projects.outcome }}
+          OUTCOME_APPLY_NOTION_PROJECT_UPDATES: ${{ steps.apply_notion_project_updates.outcome }}
           OUTCOME_BUILD: ${{ steps.build.outcome }}
           OUTCOME_DEPLOY_STATIC_ASSETS: ${{ steps.deploy_static_assets.outcome }}
           OUTCOME_DEPLOY_HTML: ${{ steps.deploy_html.outcome }}
@@ -163,6 +177,8 @@ jobs:
           [ "$OUTCOME_UPLOAD_GALLERY_IMAGES" = "failure" ] && failed_steps+=("Upload fetched Notion images")
           [ "$OUTCOME_APPLY_NOTION_S3_LINKS" = "failure" ] && failed_steps+=("Apply Notion S3 links")
           [ "$OUTCOME_APPLY_NOTION_TEAM_S3_LINKS" = "failure" ] && failed_steps+=("Apply Notion team S3 links")
+          [ "$OUTCOME_SYNC_PROJECTS" = "failure" ] && failed_steps+=("Sync projects from Notion")
+          [ "$OUTCOME_APPLY_NOTION_PROJECT_UPDATES" = "failure" ] && failed_steps+=("Apply Notion project updates")
           [ "$OUTCOME_BUILD" = "failure" ] && failed_steps+=("Build")
           [ "$OUTCOME_DEPLOY_STATIC_ASSETS" = "failure" ] && failed_steps+=("Deploy static assets")
           [ "$OUTCOME_DEPLOY_HTML" = "failure" ] && failed_steps+=("Deploy HTML")
