@@ -11,13 +11,14 @@ import {
 import { GitHubIcon } from '@/components/icons/github-icon'
 import generatedFaqItems from '@/data/contact-faq.generated.json'
 import { FaqItem } from '../../../scripts/lib/types.ts'
+import { InstagramIcon } from '@/components/icons/instagram-icon'
 
 const contactDetails = [
   {
     icon: Mail,
     label: '이메일',
-    value: 'contact@beyondimagination.dev',
-    href: 'mailto:contact@beyondimagination.dev',
+    value: 'team@beyond-imagination.net',
+    href: 'mailto:team@beyond-imagination.net',
   },
   {
     icon: MapPin,
@@ -28,7 +29,7 @@ const contactDetails = [
   {
     icon: Clock,
     label: '정기 모임',
-    value: '매주 토요일 오후 2시',
+    value: '매월 첫번째 토요일 오후 4시',
     href: null,
   },
 ]
@@ -38,13 +39,19 @@ const socialLinks = [
     icon: GitHubIcon,
     label: 'GitHub',
     value: 'github.com/beyond-imagination',
-    href: 'https://github.com',
+    href: 'https://github.com/beyond-imagination',
   },
   {
     icon: MessageCircle,
-    label: 'Discord',
-    value: 'discord.gg/beyond-imagination',
-    href: 'https://discord.com',
+    label: '카카오톡 단톡방',
+    value: 'open.kakao.com/o/gMapmsuf',
+    href: 'https://open.kakao.com/o/gMapmsuf',
+  },
+  {
+    icon: InstagramIcon,
+    label: '인스타그램',
+    value: '@team.beyond_imagination',
+    href: 'https://instagram.com/team.beyond_imagination',
   },
 ]
 
