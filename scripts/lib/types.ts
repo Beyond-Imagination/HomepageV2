@@ -41,18 +41,6 @@ export type GalleryNotionPage = {
   cover?: NotionFile
 }
 
-export type NotionQueryResponse<P> = {
-  results: P[]
-  has_more: boolean
-  next_cursor: string | null
-}
-
-export type PendingLinkUpdate = {
-  pageId: string
-  link: string
-  propertyType: 'url' | 'rich_text'
-}
-
 export type FaqNotionProperty = {
   type: string
   title?: Array<{ plain_text?: string }>
@@ -67,10 +55,16 @@ export type FaqNotionPage = {
   properties: Record<string, FaqNotionProperty>
 }
 
-export type FaqItem = {
-  question: string
-  answer: string
-  sortWeight: number
+export type NotionQueryResponse<P> = {
+  results: P[]
+  has_more: boolean
+  next_cursor: string | null
+}
+
+export type PendingLinkUpdate = {
+  pageId: string
+  link: string
+  propertyType: 'url' | 'rich_text'
 }
 
 export type ProjectPendingUpdate = {
@@ -97,4 +91,31 @@ export type ProjectNotionPage = {
   created_time: string
   properties: Record<string, ProjectNotionProperty>
   cover?: NotionFile
+}
+
+export type FaqItem = {
+  question: string
+  answer: string
+}
+
+// Preprocessing Types
+export type NotionBlock = {
+  id: string
+  type: string
+  has_children: boolean
+  child_page?: { title: string }
+  child_database?: { title: string }
+  heading_3?: { rich_text: Array<{ plain_text: string }> }
+  paragraph?: { rich_text: Array<{ plain_text: string; href?: string | null }> }
+  toggle?: { rich_text: Array<{ plain_text: string }> }
+  bulleted_list_item?: { rich_text: Array<{ plain_text: string }> }
+  image?: { type: string; file?: { url?: string }; external?: { url?: string } }
+  column_list?: Record<string, unknown>
+  column?: Record<string, unknown>
+}
+
+export type NotionBlocksResponse = {
+  results: NotionBlock[]
+  has_more: boolean
+  next_cursor: string | null
 }

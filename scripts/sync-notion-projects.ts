@@ -1,14 +1,20 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { spawnSync } from 'node:child_process'
+
 import pLimit from 'p-limit'
-import { notionRequest, updatePageProperty } from './lib/notion.ts'
-import type { ProjectNotionPage as NotionPage, NotionQueryResponse } from './lib/types.ts'
+import { notionRequest } from './lib/notion.ts'
+import type {
+  ProjectNotionPage as NotionPage,
+  NotionQueryResponse,
+  ProjectPendingUpdate,
+} from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
+import { createThumbnail } from './lib/image-processor.ts'
 import type { Project, Screenshot } from '../src/types/project.ts'
 
 const OUTPUT_JSON_PATH = 'src/data/projects.generated.json'
+const OUTPUT_PENDING_UPDATES_PATH = 'src/data/projects.pending-updates.json'
 const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/projects/original'
 const OUTPUT_IMAGE_THUMB_DIR = 'public/images/projects/thumb'
 const OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH = '/images/projects/thumb'
@@ -37,70 +43,42 @@ const notionParticipantsPropertyName = 'participants'
 
 const validationPassed = '✅'
 
-// TODO: <refactor> 아래는 추후 공통 lib로 빠질 수 있음
+// TODO: <refactor> 아래 클래스의 Notion 프로퍼티 접근 메서드는 추후 대규모 리팩토링 예정
 class ImageProcessor {
-  createThumbnail(originalPath: string, thumbPath: string) {
-    const commands: Array<{ command: string; args: string[] }> = [
-      {
-        command: 'magick',
-        args: [
-          originalPath,
-          '-auto-orient',
-          '-resize',
-          `${THUMB_WIDTH}>`,
-          '-quality',
-          String(THUMB_QUALITY),
-          thumbPath,
-        ],
-      },
-      {
-        command: 'convert',
-        args: [
-          originalPath,
-          '-auto-orient',
-          '-resize',
-          `${THUMB_WIDTH}>`,
-          '-quality',
-          String(THUMB_QUALITY),
-          thumbPath,
-        ],
-      },
-    ]
-
-    for (const { command, args } of commands) {
-      const result = spawnSync(command, args, { stdio: 'ignore' })
-      if (!result.error && result.status === 0) {
-        return true
-      }
+  getFirstFileUrl(page: NotionPage, propertyName: string, fallbackUrl?: string | null) {
+    const property = page.properties[propertyName]
+    if (property?.type === 'files' && property.files?.length) {
+      const file = property.files[0]
+      if (file.type === 'external') return file.external?.url
+      if (file.type === 'file') return file.file?.url
     }
-
-    return false
+    return fallbackUrl || null
   }
 
-  getFirstFileUrl(page: NotionPage, propertyName: string) {
+  getFileUrls(page: NotionPage, propertyName: string, fallbackUrls?: string[]) {
     const property = page.properties[propertyName]
-    if (property?.type !== 'files' || !property.files?.length) return null
-    const file = property.files[0]
-    if (file.type === 'external') return file.external?.url
-    if (file.type === 'file') return file.file?.url
-    return null
+    if (property?.type === 'files' && property.files?.length) {
+      return property.files
+        .map((file) => {
+          if (file.type === 'external') return file.external?.url
+          if (file.type === 'file') return file.file?.url
+          return null
+        })
+        .filter((url): url is string => !!url)
+    }
+    return fallbackUrls && fallbackUrls.length > 0 ? fallbackUrls : []
   }
 
-  getFileUrls(page: NotionPage, propertyName: string) {
-    const property = page.properties[propertyName]
-    if (property?.type !== 'files' || !property.files?.length) return []
-    return property.files
-      .map((file) => {
-        if (file.type === 'external') return file.external?.url
-        if (file.type === 'file') return file.file?.url
-        return null
-      })
-      .filter((url): url is string => !!url)
-  }
-
-  async processThumbnail(page: NotionPage, propertyName: string) {
-    const sourceUrl = this.getFirstFileUrl(page, propertyName)
-    if (!sourceUrl) return null
+  async processThumbnail(page: NotionPage, propertyName: string, fallbackUrl: string | null) {
+    const sourceUrl = this.getFirstFileUrl(page, propertyName, fallbackUrl)
+    if (
+      !sourceUrl ||
+      sourceUrl.startsWith(OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH) ||
+      sourceUrl.startsWith(OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH)
+    ) {
+      // 이미 S3 permanent URL 이라면 다운로드를 스킵 (이미지가 변경되지 않았다면)
+      return null
+    }
 
     const { contentType, data } = await downloadImage(sourceUrl)
     const extension = guessExtension(sourceUrl, contentType)
@@ -113,7 +91,10 @@ class ImageProcessor {
     const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
 
     writeFileSync(normalizedOriginalPath, data)
-    const mbThumbCreated = this.createThumbnail(normalizedOriginalPath, thumbPath)
+    const mbThumbCreated = createThumbnail(normalizedOriginalPath, thumbPath, {
+      width: THUMB_WIDTH,
+      quality: THUMB_QUALITY,
+    })
 
     let finalUrl = ''
     if (mbThumbCreated) {
@@ -125,9 +106,20 @@ class ImageProcessor {
     return { url: finalUrl }
   }
 
-  async processScreenshots(page: NotionPage, propertyName: string) {
-    const sourceUrls = this.getFileUrls(page, propertyName)
+  async processScreenshots(page: NotionPage, propertyName: string, fallbackUrls: string[]) {
+    const sourceUrls = this.getFileUrls(page, propertyName, fallbackUrls)
     if (sourceUrls.length === 0) return []
+
+    // 만약 첫번째 이미지가 이미 영구 링크라면 전체 다운로드를 패스
+    // 하나의 이미지라도 webp 변환이후 permenant url로 변환되지 않을 경우 전체가 실패할 것이라 예상
+    // 따라서 첫번째 이미지만 확인하여 영구 링크라면 전체 다운로드를 패스
+    if (
+      sourceUrls[0] &&
+      (sourceUrls[0].startsWith(OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH) ||
+        sourceUrls[0].startsWith(OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH))
+    ) {
+      return []
+    }
 
     const newScreenshots: Screenshot[] = []
 
@@ -144,10 +136,15 @@ class ImageProcessor {
 
         writeFileSync(originalPath, data)
 
-        this.createThumbnail(originalPath, thumbPath)
+        const isThumbCreated = createThumbnail(originalPath, thumbPath, {
+          width: THUMB_WIDTH,
+          quality: THUMB_QUALITY,
+        })
 
         newScreenshots.push({
-          src: `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`,
+          src: isThumbCreated
+            ? `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`
+            : `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${filename}`,
           title: `Screenshot ${i + 1}`,
         })
       } catch (e) {
@@ -208,8 +205,18 @@ class ProjectMapper {
 
   pickPeople(page: NotionPage, propertyName: string) {
     const property = page.properties[propertyName]
-    if (property?.type !== 'people') return []
-    return property.people?.map((person) => person.name || '').filter(Boolean) || []
+    if (property?.type !== 'rich_text') return []
+
+    const text =
+      property.rich_text
+        ?.map((t) => t.plain_text)
+        .join('')
+        .trim() || ''
+
+    return text
+      .split(',')
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0)
   }
 
   pickStatus(page: NotionPage): 'in-progress' | 'completed' {
@@ -250,7 +257,10 @@ class ProjectMapper {
   pickScreenshotsInfo(page: NotionPage): Screenshot[] {
     const property = page.properties[notionScreenshotsInfoPropertyName]
     if (property?.type !== 'rich_text') return []
-    const text = property.rich_text?.[0]?.plain_text
+    if (!property.rich_text || property.rich_text.length === 0) return []
+
+    // preprocess-notion-projects 에서 2000자 초과를 막기 위해 chunk로 나뉜 텍스트를 하나로 합침
+    const text = property.rich_text.map((t) => t.plain_text).join('')
     if (!text) return []
     try {
       return JSON.parse(text)
@@ -270,7 +280,7 @@ class ProjectMapper {
     const description = this.pickRichText(page, notionDescriptionPropertyName)
     const goal = this.pickRichText(page, notionGoalPropertyName)
     const techStack = this.pickMultiSelect(page, notionTechStackPropertyName)
-    const members = this.pickPeople(page, notionParticipantsPropertyName)
+    const participants = this.pickPeople(page, notionParticipantsPropertyName)
     const github = this.pickUrl(page, notionGithubPropertyName)
     const demo = this.pickUrl(page, notionDemoPropertyName)
     const { startDate, endDate } = this.pickDate(page)
@@ -284,7 +294,7 @@ class ProjectMapper {
       description,
       goal,
       techStack,
-      members,
+      participants,
       startDate,
       endDate: endDate || '',
       thumbnail: thumbUrl || '',
@@ -341,9 +351,13 @@ async function processPage(page: NotionPage, index: number) {
   const pendingUpdates: Record<string, unknown> = {}
 
   // 1. Thumbnail Processing
-  if (!thumbnailUrl) {
+  if (thumbnailUrl) {
     try {
-      const result = await imageProcessor.processThumbnail(page, notionThumbnailPropertyName)
+      const result = await imageProcessor.processThumbnail(
+        page,
+        notionThumbnailPropertyName,
+        thumbnailUrl
+      )
       if (result) {
         thumbnailUrl = result.url
         pendingUpdates[notionThumbnailUrlPropertyName] = { url: thumbnailUrl }
@@ -354,16 +368,30 @@ async function processPage(page: NotionPage, index: number) {
   }
 
   // 2. Screenshots Processing
-  if (screenshots.length === 0) {
+  if (screenshots.length > 0) {
     try {
+      // screenshots 배열 내부의 임시 URL(src) 들을 추출
+      const fallbackUrls = screenshots.map((s) => s.src)
       const newScreenshots = await imageProcessor.processScreenshots(
         page,
-        notionScreenshotsPropertyName
+        notionScreenshotsPropertyName,
+        fallbackUrls
       )
       if (newScreenshots.length > 0) {
         screenshots = newScreenshots
+
+        // 2000자 초과 문제를 피하기 위해 chunk 분할
+        const jsonString = JSON.stringify(screenshots)
+        const chunks = []
+        for (let i = 0; i < jsonString.length; i += 2000) {
+          chunks.push({
+            type: 'text',
+            text: { content: jsonString.substring(i, i + 2000) },
+          })
+        }
+
         pendingUpdates[notionScreenshotsInfoPropertyName] = {
-          rich_text: [{ type: 'text', text: { content: JSON.stringify(screenshots) } }],
+          rich_text: chunks,
         }
       }
     } catch (e) {
@@ -371,16 +399,12 @@ async function processPage(page: NotionPage, index: number) {
     }
   }
 
-  if (Object.keys(pendingUpdates).length > 0) {
-    try {
-      await updatePageProperty(page.id, pendingUpdates, LOG_TAG)
-      console.log(`[${LOG_TAG}] Updated properties for ${title}`)
-    } catch (e) {
-      console.error(`[${LOG_TAG}] Failed to update Notion properties for ${title}:`, e)
-    }
-  }
+  const project = projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
 
-  return projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
+  const pendingUpdate: ProjectPendingUpdate | null =
+    Object.keys(pendingUpdates).length > 0 ? { pageId: page.id, properties: pendingUpdates } : null
+
+  return { project, pendingUpdate }
 }
 
 async function run() {
@@ -402,14 +426,22 @@ async function run() {
   )
 
   const limit = pLimit(CONCURRENT_LIMIT)
-  const projects = await Promise.all(
+  const results = await Promise.all(
     pages.map((page, index) => limit(() => processPage(page, index + 1)))
   )
+
+  const projects = results.map((r) => r.project)
+  const pendingUpdates = results
+    .map((r) => r.pendingUpdate)
+    .filter((u): u is ProjectPendingUpdate => u !== null)
 
   // Save JSON
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(projects, null, 2)}\n`)
+  writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
+
   console.log(`[${LOG_TAG}] Synced ${projects.length} project(s).`)
+  console.log(`[${LOG_TAG}] Pending Notion updates: ${pendingUpdates.length}`)
 }
 
 run().catch((error: unknown) => {
