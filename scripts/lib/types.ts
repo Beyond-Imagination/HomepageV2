@@ -96,6 +96,7 @@ export type ProjectNotionPage = {
 export type FaqItem = {
   question: string
   answer: string
+  sortWeight: number
 }
 
 // Preprocessing Types

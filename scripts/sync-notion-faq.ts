@@ -15,6 +15,7 @@ const notionDatabaseId = process.env.NOTION_FAQ_DATABASE_ID
 
 const notionQuestionPropertyName = '질문'
 const notionAnswerPropertyName = '답변'
+const notionSortWeightPropertyName = '정렬 가중치'
 
 function toPlainText(property?: NotionProperty): string {
   if (!property) return ''
@@ -49,6 +50,16 @@ function pickAnswer(page: NotionPage): string {
     (property) => property.type === 'rich_text' && toPlainText(property).length > 0
   )
   return toPlainText(firstRichText)
+}
+
+function pickSortWeight(page: NotionPage): number {
+  const number = page.properties[notionSortWeightPropertyName]?.number
+
+  if (number != null && !isNaN(number)) {
+    return number
+  }
+
+  return Number.MAX_SAFE_INTEGER // 지정하지 않으면 가장 마지막으로
 }
 
 async function fetchDatabasePages() {
@@ -89,6 +100,7 @@ async function run() {
     .map((page) => {
       const question = pickQuestion(page)
       const answer = pickAnswer(page)
+      const sortWeight = pickSortWeight(page)
 
       if (!question || !answer) {
         console.warn(`[${LOG_TAG}] Page ${page.id} skipped: missing question or answer.`)
@@ -98,9 +110,11 @@ async function run() {
       return {
         question,
         answer,
+        sortWeight,
       } satisfies FaqItem
     })
     .filter((item): item is FaqItem => item !== null)
+    .sort((a, b) => a.sortWeight - b.sortWeight) // sortWeight 오름차순
 
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
   writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(faqItems, null, 2)}\n`)

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
-import { Mail } from 'lucide-react'
+import { Mail, MessageCircle } from 'lucide-react'
 import { GitHubIcon } from '@/components/icons/github-icon'
+import { InstagramIcon } from '@/components/icons/instagram-icon'
 
 export function Footer() {
   return (
@@ -53,7 +54,7 @@ export function Footer() {
             <h4 className="font-semibold text-sm uppercase tracking-wider">Connect</h4>
             <div className="flex items-center gap-4">
               <a
-                href="https://github.com"
+                href="https://github.com/beyond-imagination"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors"
@@ -62,11 +63,29 @@ export function Footer() {
                 <GitHubIcon className="w-5 h-5" />
               </a>
               <a
-                href="mailto:contact@beyondimagination.dev"
+                href="mailto:team@beyond-imagination.net"
                 className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors"
                 aria-label="Email"
               >
                 <Mail className="w-5 h-5" />
+              </a>
+              <a
+                href="https://open.kakao.com/o/gMapmsuf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors"
+                aria-label="Kakao Open Chat"
+              >
+                <MessageCircle className="w-5 h-5" />
+              </a>
+              <a
+                href="https://instagram.com/team.beyond_imagination"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-primary-foreground/20 transition-colors"
+                aria-label="Instagram"
+              >
+                <InstagramIcon className="w-5 h-5" />
               </a>
             </div>
           </div>
