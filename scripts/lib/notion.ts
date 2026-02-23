@@ -1,5 +1,5 @@
 import { getRetryDelayMs, sleep } from './utils.ts'
-import type { NotionQueryResponse, PendingLinkUpdate } from './types.ts'
+import type { NotionQueryResponse, PendingLinkUpdate, NotionBlocksResponse } from './types.ts'
 import {
   NOTION_API_MAX_RETRIES,
   NOTION_API_RETRY_DELAY_MS,
@@ -11,21 +11,25 @@ import {
 
 async function notionFetch(
   endpoint: string,
-  method: 'POST' | 'PATCH',
-  body: Record<string, unknown>,
+  method: 'GET' | 'POST' | 'PATCH',
+  body: Record<string, unknown> | null,
   logTag: string
 ): Promise<unknown> {
   for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
     try {
-      const response = await fetch(`${NOTION_BASE_URL}${endpoint}`, {
+      const options: RequestInit = {
         method,
         headers: {
           Authorization: `Bearer ${notionToken}`,
           'Notion-Version': NOTION_VERSION,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(body),
-      })
+      }
+      if (body) {
+        options.body = JSON.stringify(body)
+      }
+
+      const response = await fetch(`${NOTION_BASE_URL}${endpoint}`, options)
 
       if (response.ok) {
         const text = await response.text()
@@ -101,4 +105,35 @@ export async function updatePageProperty(
     },
     logTag
   )
+}
+
+// 요 아래는 preprocess 과정에서 recursive하게 페이지를 파싱하고, notion db에 가져온 데이터를 write하는데 활용됨
+export async function getBlockChildren(
+  blockId: string,
+  logTag: string,
+  startCursor?: string
+): Promise<NotionBlocksResponse> {
+  const query = startCursor ? `?page_size=100&start_cursor=${startCursor}` : '?page_size=100'
+  return (await notionFetch(
+    `/blocks/${blockId}/children${query}`,
+    'GET',
+    null,
+    logTag
+  )) as NotionBlocksResponse
+}
+
+export async function createPage(
+  databaseId: string,
+  properties: Record<string, unknown>,
+  logTag: string
+) {
+  const payload = {
+    parent: { database_id: databaseId },
+    properties,
+  }
+  return notionFetch('/pages', 'POST', payload, logTag)
+}
+
+export async function getPage(pageId: string, logTag: string) {
+  return notionFetch(`/pages/${pageId}`, 'GET', null, logTag)
 }

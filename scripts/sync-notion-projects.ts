@@ -45,30 +45,40 @@ const validationPassed = '✅'
 
 // TODO: <refactor> 아래 클래스의 Notion 프로퍼티 접근 메서드는 추후 대규모 리팩토링 예정
 class ImageProcessor {
-  getFirstFileUrl(page: NotionPage, propertyName: string) {
+  getFirstFileUrl(page: NotionPage, propertyName: string, fallbackUrl?: string | null) {
     const property = page.properties[propertyName]
-    if (property?.type !== 'files' || !property.files?.length) return null
-    const file = property.files[0]
-    if (file.type === 'external') return file.external?.url
-    if (file.type === 'file') return file.file?.url
-    return null
+    if (property?.type === 'files' && property.files?.length) {
+      const file = property.files[0]
+      if (file.type === 'external') return file.external?.url
+      if (file.type === 'file') return file.file?.url
+    }
+    return fallbackUrl || null
   }
 
-  getFileUrls(page: NotionPage, propertyName: string) {
+  getFileUrls(page: NotionPage, propertyName: string, fallbackUrls?: string[]) {
     const property = page.properties[propertyName]
-    if (property?.type !== 'files' || !property.files?.length) return []
-    return property.files
-      .map((file) => {
-        if (file.type === 'external') return file.external?.url
-        if (file.type === 'file') return file.file?.url
-        return null
-      })
-      .filter((url): url is string => !!url)
+    if (property?.type === 'files' && property.files?.length) {
+      return property.files
+        .map((file) => {
+          if (file.type === 'external') return file.external?.url
+          if (file.type === 'file') return file.file?.url
+          return null
+        })
+        .filter((url): url is string => !!url)
+    }
+    return fallbackUrls && fallbackUrls.length > 0 ? fallbackUrls : []
   }
 
-  async processThumbnail(page: NotionPage, propertyName: string) {
-    const sourceUrl = this.getFirstFileUrl(page, propertyName)
-    if (!sourceUrl) return null
+  async processThumbnail(page: NotionPage, propertyName: string, fallbackUrl: string | null) {
+    const sourceUrl = this.getFirstFileUrl(page, propertyName, fallbackUrl)
+    if (
+      !sourceUrl ||
+      sourceUrl.startsWith(OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH) ||
+      sourceUrl.startsWith(OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH)
+    ) {
+      // 이미 S3 permanent URL 이라면 다운로드를 스킵 (이미지가 변경되지 않았다면)
+      return null
+    }
 
     const { contentType, data } = await downloadImage(sourceUrl)
     const extension = guessExtension(sourceUrl, contentType)
@@ -96,9 +106,20 @@ class ImageProcessor {
     return { url: finalUrl }
   }
 
-  async processScreenshots(page: NotionPage, propertyName: string) {
-    const sourceUrls = this.getFileUrls(page, propertyName)
+  async processScreenshots(page: NotionPage, propertyName: string, fallbackUrls: string[]) {
+    const sourceUrls = this.getFileUrls(page, propertyName, fallbackUrls)
     if (sourceUrls.length === 0) return []
+
+    // 만약 첫번째 이미지가 이미 영구 링크라면 전체 다운로드를 패스
+    // 하나의 이미지라도 webp 변환이후 permenant url로 변환되지 않을 경우 전체가 실패할 것이라 예상
+    // 따라서 첫번째 이미지만 확인하여 영구 링크라면 전체 다운로드를 패스
+    if (
+      sourceUrls[0] &&
+      (sourceUrls[0].startsWith(OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH) ||
+        sourceUrls[0].startsWith(OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH))
+    ) {
+      return []
+    }
 
     const newScreenshots: Screenshot[] = []
 
@@ -115,13 +136,15 @@ class ImageProcessor {
 
         writeFileSync(originalPath, data)
 
-        createThumbnail(originalPath, thumbPath, {
+        const isThumbCreated = createThumbnail(originalPath, thumbPath, {
           width: THUMB_WIDTH,
           quality: THUMB_QUALITY,
         })
 
         newScreenshots.push({
-          src: `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`,
+          src: isThumbCreated
+            ? `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`
+            : `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${filename}`,
           title: `Screenshot ${i + 1}`,
         })
       } catch (e) {
@@ -234,7 +257,10 @@ class ProjectMapper {
   pickScreenshotsInfo(page: NotionPage): Screenshot[] {
     const property = page.properties[notionScreenshotsInfoPropertyName]
     if (property?.type !== 'rich_text') return []
-    const text = property.rich_text?.[0]?.plain_text
+    if (!property.rich_text || property.rich_text.length === 0) return []
+
+    // preprocess-notion-projects 에서 2000자 초과를 막기 위해 chunk로 나뉜 텍스트를 하나로 합침
+    const text = property.rich_text.map((t) => t.plain_text).join('')
     if (!text) return []
     try {
       return JSON.parse(text)
@@ -325,9 +351,13 @@ async function processPage(page: NotionPage, index: number) {
   const pendingUpdates: Record<string, unknown> = {}
 
   // 1. Thumbnail Processing
-  if (!thumbnailUrl) {
+  if (thumbnailUrl) {
     try {
-      const result = await imageProcessor.processThumbnail(page, notionThumbnailPropertyName)
+      const result = await imageProcessor.processThumbnail(
+        page,
+        notionThumbnailPropertyName,
+        thumbnailUrl
+      )
       if (result) {
         thumbnailUrl = result.url
         pendingUpdates[notionThumbnailUrlPropertyName] = { url: thumbnailUrl }
@@ -338,16 +368,30 @@ async function processPage(page: NotionPage, index: number) {
   }
 
   // 2. Screenshots Processing
-  if (screenshots.length === 0) {
+  if (screenshots.length > 0) {
     try {
+      // screenshots 배열 내부의 임시 URL(src) 들을 추출
+      const fallbackUrls = screenshots.map((s) => s.src)
       const newScreenshots = await imageProcessor.processScreenshots(
         page,
-        notionScreenshotsPropertyName
+        notionScreenshotsPropertyName,
+        fallbackUrls
       )
       if (newScreenshots.length > 0) {
         screenshots = newScreenshots
+
+        // 2000자 초과 문제를 피하기 위해 chunk 분할
+        const jsonString = JSON.stringify(screenshots)
+        const chunks = []
+        for (let i = 0; i < jsonString.length; i += 2000) {
+          chunks.push({
+            type: 'text',
+            text: { content: jsonString.substring(i, i + 2000) },
+          })
+        }
+
         pendingUpdates[notionScreenshotsInfoPropertyName] = {
-          rich_text: [{ type: 'text', text: { content: JSON.stringify(screenshots) } }],
+          rich_text: chunks,
         }
       }
     } catch (e) {
