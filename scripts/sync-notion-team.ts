@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+
 import { dirname, join } from 'node:path'
 import pLimit from 'p-limit'
 import { notionRequest } from './lib/notion.ts'
@@ -11,6 +11,7 @@ import type {
 } from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionS3LinkPropertyName, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
+import { resizeAndCrop } from './lib/image-processor.ts'
 
 const OUTPUT_JSON_PATH = 'src/data/team.generated.json'
 const OUTPUT_PENDING_UPDATES_PATH = 'src/data/team.pending-link-updates.json'
@@ -140,31 +141,6 @@ function pickS3LinkPropertyType(page: NotionPage): 'url' | 'rich_text' | null {
   return null
 }
 
-function resizeImage(originalPath: string, resizedPath: string) {
-  const args = [
-    originalPath,
-    '-auto-orient',
-    '-resize',
-    `${IMAGE_WIDTH}x${IMAGE_WIDTH}^`,
-    '-gravity',
-    'center',
-    '-extent',
-    `${IMAGE_WIDTH}x${IMAGE_WIDTH}`,
-    '-quality',
-    String(IMAGE_QUALITY),
-    resizedPath,
-  ]
-  const commands = ['magick', 'convert']
-
-  for (const command of commands) {
-    const result = spawnSync(command, args, { stdio: 'ignore' })
-    if (!result.error && result.status === 0) {
-      return true
-    }
-  }
-  return false
-}
-
 async function processPage(
   page: NotionPage,
   index: number
@@ -236,7 +212,10 @@ async function processPage(
 
         writeFileSync(tempPath, data)
 
-        const resized = resizeImage(tempPath, finalPath)
+        const resized = resizeAndCrop(tempPath, finalPath, {
+          size: IMAGE_WIDTH,
+          quality: IMAGE_QUALITY,
+        })
 
         let finalS3Link = ''
         if (resized) {

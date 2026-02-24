@@ -1,5 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
+
 import { dirname, join } from 'node:path'
 import pLimit from 'p-limit'
 import { notionRequest } from './lib/notion.ts'
@@ -10,6 +10,7 @@ import type {
 } from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionS3LinkPropertyName, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
+import { createThumbnail } from './lib/image-processor.ts'
 
 const OUTPUT_JSON_PATH = 'src/data/gallery.generated.json'
 const OUTPUT_PENDING_UPDATES_PATH = 'src/data/gallery.pending-link-updates.json'
@@ -175,44 +176,6 @@ async function fetchDatabasePages() {
   return pages
 }
 
-function createThumbnail(originalPath: string, thumbPath: string) {
-  const commands: Array<{ command: string; args: string[] }> = [
-    {
-      command: 'magick',
-      args: [
-        originalPath,
-        '-auto-orient',
-        '-resize',
-        `${THUMB_WIDTH}>`,
-        '-quality',
-        String(THUMB_QUALITY),
-        thumbPath,
-      ],
-    },
-    {
-      command: 'convert',
-      args: [
-        originalPath,
-        '-auto-orient',
-        '-resize',
-        `${THUMB_WIDTH}>`,
-        '-quality',
-        String(THUMB_QUALITY),
-        thumbPath,
-      ],
-    },
-  ]
-
-  for (const { command, args } of commands) {
-    const result = spawnSync(command, args, { stdio: 'ignore' })
-    if (!result.error && result.status === 0) {
-      return true
-    }
-  }
-
-  return false
-}
-
 function inferThumbnailLinkFromOriginal(originalLink: string, pageId: string) {
   const normalized = originalLink.trim()
   if (!normalized) return null
@@ -282,7 +245,10 @@ async function processPage(
     const thumbS3Link = `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${thumbFilename}`
 
     writeFileSync(originalPath, data)
-    const thumbCreated = createThumbnail(originalPath, thumbPath)
+    const thumbCreated = createThumbnail(originalPath, thumbPath, {
+      width: THUMB_WIDTH,
+      quality: THUMB_QUALITY,
+    })
 
     if (!thumbCreated) {
       throw new Error('Thumbnail generation failed. Install ImageMagick (magick/convert).')
