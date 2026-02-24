@@ -119,3 +119,34 @@ export type NotionBlocksResponse = {
   has_more: boolean
   next_cursor: string | null
 }
+
+export type ProjectStatus = 'in-progress' | 'completed'
+
+/**
+ * src/data/team.generated.json 환경설정 파일에서 팀 멤버 데이터를 가져오기 위한 인터페이스입니다.
+ */
+export interface TeamMemberProjects {
+  name: string
+  pastProjects: string[]
+}
+
+export interface ParsedProjectData {
+  name: string
+  status: ProjectStatus
+  summary: string
+  description: string
+  goal: string
+  github: string
+  demo: string
+  techStacks: string[]
+  participants: string[]
+  date: { start: string; end?: string } | null
+  thumbnailUrl?: string | null
+  screenshotsUrls?: string[]
+}
+
+export interface ExistingProjectData {
+  id: string
+  thumbnailUrl: string | null
+  screenshotsInfoText: string | null
+}

@@ -2,7 +2,14 @@ import pLimit from 'p-limit'
 import { promises as fs } from 'fs'
 import path from 'path'
 import { getBlockChildren, createPage, updatePageProperty, notionRequest } from './lib/notion.ts'
-import type { NotionBlock, ProjectNotionPage, NotionQueryResponse } from './lib/types.ts'
+import type {
+  NotionBlock,
+  ProjectNotionPage,
+  NotionQueryResponse,
+  ParsedProjectData,
+  ExistingProjectData,
+  TeamMemberProjects,
+} from './lib/types.ts'
 import { notionToken } from './lib/constants.ts'
 
 const LOG_TAG = 'preprocess-notion-projects'
@@ -10,34 +17,6 @@ const PROJECTS_DATABASE_ID = process.env.NOTION_PROJECTS_DATABASE_ID
 const ROOT_PROJECTS_PAGE_ID = 'e645a6deba8c4b5e945b1f25cec44710'
 const COMPLETED_PROJECTS_PAGE_ID = '1aa402b843138097a3d7f1f38e642139'
 const PROJECT_INTRO_TITLE = '프로젝트 소개'
-
-type ProjectStatus = 'in-progress' | 'completed'
-
-interface TeamMember {
-  name: string
-  pastProjects: string[]
-}
-
-interface ParsedProjectData {
-  name: string
-  status: ProjectStatus
-  summary: string
-  description: string
-  goal: string
-  github: string
-  demo: string
-  techStacks: string[]
-  participants: string[]
-  date: { start: string; end?: string } | null
-  thumbnailUrl?: string | null
-  screenshotsUrls?: string[]
-}
-
-interface ExistingProjectData {
-  id: string
-  thumbnailUrl: string | null
-  screenshotsInfoText: string | null
-}
 
 /**
  * 지정된 노션 프로젝트 데이터베이스에서 모든 프로젝트 항목을 조회합니다.
@@ -267,10 +246,10 @@ async function findProjectIntroAndParse(
  * 결과는 Set 자료구조를 사용하여 팀원 이름의 중복을 방지합니다.
  *
  * @param {string} projectName - 조회할 대상 프로젝트의 이름
- * @param {TeamMember[]} teamData - 전체 팀원들의 정보(이름, 과거 프로젝트 등) 배열
+ * @param {TeamMemberProjects[]} teamData - 전체 팀원들의 정보(이름, 과거 프로젝트 등) 배열
  * @returns {string[]} 프로젝트에 참여한 팀원들의 이름 배열
  */
-function findParticipantsFromName(projectName: string, teamData: TeamMember[]): string[] {
+function findParticipantsFromName(projectName: string, teamData: TeamMemberProjects[]): string[] {
   const names = new Set<string>()
 
   for (const member of teamData) {
@@ -404,7 +383,7 @@ async function processProjects() {
 
   // 프로젝트 참여 인원을 연동하기 위해서 반드시 `sync:team` 작업이 먼저 수행되어야 함
   const teamDataPath = path.resolve(process.cwd(), 'src/data/team.generated.json')
-  let teamData: TeamMember[] = []
+  let teamData: TeamMemberProjects[] = []
   try {
     const fileContent = await fs.readFile(teamDataPath, 'utf8')
     teamData = JSON.parse(fileContent)
