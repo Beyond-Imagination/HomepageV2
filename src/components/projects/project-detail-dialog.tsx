@@ -110,13 +110,21 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
           )}
         >
           {/* Hero Section */}
-          <div className="relative w-full h-64 md:h-80 bg-muted">
-            <img
-              src={project.thumbnail}
-              alt={project.title}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent" />
+          <div className="relative flex w-full h-64 md:h-80 items-center justify-center overflow-hidden bg-muted">
+            {project.thumbnail ? (
+              <img
+                src={project.thumbnail}
+                alt={project.title}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center p-8">
+                <span className="text-4xl md:text-6xl font-bold text-muted-foreground/20 text-center break-words select-none">
+                  {project.title}
+                </span>
+              </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent pointer-events-none" />
 
             <div className="absolute bottom-6 left-6 right-6">
               <div className="flex items-center gap-3 mb-3">

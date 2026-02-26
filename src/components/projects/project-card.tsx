@@ -22,12 +22,18 @@ export function ProjectCard({ project, index, onClick }: ProjectCardProps) {
       onClick={onClick}
     >
       {/* Thumbnail */}
-      <div className="aspect-video w-full overflow-hidden bg-muted">
-        <img
-          src={project.thumbnail}
-          alt={project.title}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden bg-muted p-6">
+        {project.thumbnail ? (
+          <img
+            src={project.thumbnail}
+            alt={project.title}
+            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <span className="line-clamp-2 text-center text-xl font-bold text-muted-foreground/50 select-none transition-transform duration-500 group-hover:scale-105">
+            {project.title}
+          </span>
+        )}
       </div>
 
       {/* Content */}
