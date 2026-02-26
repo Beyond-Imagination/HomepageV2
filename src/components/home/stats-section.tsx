@@ -1,6 +1,5 @@
-import { motion } from 'framer-motion'
-import { useInView } from 'framer-motion'
-import { useRef, useMemo } from 'react'
+import { animate, motion, useInView, useMotionValue, useTransform } from 'framer-motion'
+import { useEffect, useMemo, useRef } from 'react'
 import { Rocket, Users, Calendar, GraduationCap } from 'lucide-react'
 import { TeamMember } from '@/types/teamMember'
 import generatedTeamMembers from '@/data/team.generated.json'
@@ -11,6 +10,40 @@ const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]
 const activeTeamMembers = teamMembers.filter((member) => !member.leaveDate)
 const totalMemberCount = teamMembers.length
 const activeMemberCount = activeTeamMembers.length
+
+function CountUp({
+  target,
+  suffix = '',
+  isInView,
+}: {
+  target: number
+  suffix?: string
+  isInView: boolean
+}) {
+  const count = useMotionValue(0)
+  const rounded = useTransform(count, (latest) => Math.floor(latest))
+
+  useEffect(() => {
+    if (!isInView) {
+      count.set(0)
+      return
+    }
+
+    const controls = animate(count, target, {
+      duration: 1.3,
+      ease: 'easeOut',
+    })
+
+    return () => controls.stop()
+  }, [count, isInView, target])
+
+  return (
+    <>
+      <motion.span>{rounded}</motion.span>
+      {suffix}
+    </>
+  )
+}
 
 export function StatsSection() {
   const yearsSinceFounding = useMemo(() => {
@@ -24,25 +57,26 @@ export function StatsSection() {
     () => [
       {
         icon: Rocket,
-        value: '12+',
+        target: 12,
         label: 'Projects',
         description: '완료된 프로젝트',
       },
       {
         icon: Users,
-        value: activeMemberCount,
+        target: activeMemberCount,
         label: 'Active Members',
         description: '활동 중인 팀원',
       },
       {
         icon: GraduationCap,
-        value: totalMemberCount,
+        target: totalMemberCount,
         label: 'Total Members',
         description: '함께한 사람들',
       },
       {
         icon: Calendar,
-        value: `${yearsSinceFounding}+`,
+        target: yearsSinceFounding,
+        suffix: '+',
         label: 'Years',
         description: '함께한 시간',
       },
@@ -88,7 +122,7 @@ export function StatsSection() {
                   className="text-4xl md:text-5xl font-bold text-primary mb-2"
                   style={{ fontFamily: 'var(--font-heading)' }}
                 >
-                  {stat.value}
+                  <CountUp target={stat.target} suffix={stat.suffix} isInView={isInView} />
                 </div>
                 <div className="text-sm font-medium text-foreground mb-1">{stat.label}</div>
                 <div className="text-xs text-muted-foreground">{stat.description}</div>
