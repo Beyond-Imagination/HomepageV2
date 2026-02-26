@@ -157,9 +157,7 @@ async function parseBlocks(blocks: NotionBlock[]): Promise<Partial<ParsedProject
         .map((s) => s.trim())
         .filter(Boolean)
     } else if (currentField === 'github' || currentField === 'demo') {
-      if (text !== '-' && text.length > 0) {
-        data[currentField] = text
-      }
+      data[currentField] = text === '-' || text.length == 0 ? '' : text
     } else {
       ;(data as Record<string, unknown>)[currentField] = text
     }
