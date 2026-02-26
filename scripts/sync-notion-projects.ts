@@ -1,6 +1,5 @@
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-
 import pLimit from 'p-limit'
 import { notionRequest } from './lib/notion.ts'
 import type {
