@@ -10,7 +10,7 @@ const FOUNDING_DATE = new Date('2017-03-01')
 
 const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]
 const activeTeamMembers = teamMembers.filter((member) => !member.leaveDate)
-const completedProjectCount = (generatedProjects as Project[]).length
+const totalProjectCount = (generatedProjects as Project[]).length
 const totalMemberCount = teamMembers.length
 const activeMemberCount = activeTeamMembers.length
 
@@ -60,7 +60,7 @@ export function StatsSection() {
     () => [
       {
         icon: Rocket,
-        target: completedProjectCount,
+        target: totalProjectCount,
         label: 'Projects',
         description: '프로젝트',
       },
