@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { Project, ProjectStatus, ProjectCard } from './project-card'
+import { Project, ProjectFilter } from '@/types/project'
+import { ProjectCard } from './project-card'
 import { ProjectDetailDialog } from './project-detail-dialog'
 
 const projects: Project[] = [
@@ -14,7 +15,7 @@ const projects: Project[] = [
     thumbnail: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&h=400&fit=crop',
     status: 'in-progress',
     techStack: ['AI', 'Next.js', 'Python'],
-    members: ['강민준', '김한빈', '윤재현'],
+    participants: ['강민준', '김한빈', '윤재현'],
     goal: '기업 업무 효율화를 위한 맞춤형 AI 비서 서비스 구축',
     github: 'https://github.com',
     startDate: '2024.03',
@@ -42,7 +43,7 @@ const projects: Project[] = [
     thumbnail: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=400&fit=crop',
     status: 'completed',
     techStack: ['React', 'D3.js', 'Node.js'],
-    members: ['강민준', '김한빈'],
+    participants: ['강민준', '김한빈'],
     goal: '복잡한 비즈니스 데이터의 실시간 모니터링 및 의사결정 지원',
     github: 'https://github.com',
     demo: 'https://demo.com',
@@ -68,7 +69,7 @@ const projects: Project[] = [
     thumbnail: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&h=400&fit=crop',
     status: 'completed',
     techStack: ['React Native', 'Firebase', 'Health API'],
-    members: ['강민준', '윤재현'],
+    participants: ['강민준', '윤재현'],
     goal: '사용자 주도적인 헬스케어 습관 형성 돕기',
     github: 'https://github.com',
     demo: 'https://demo.com',
@@ -85,7 +86,7 @@ const projects: Project[] = [
     thumbnail: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=400&fit=crop',
     status: 'completed',
     techStack: ['Next.js', 'Stripe', 'PostgreSQL'],
-    members: ['강민준', '김한빈', '윤재현'],
+    participants: ['강민준', '김한빈', '윤재현'],
     goal: '글로벌 시장 대응이 가능한 고성능 커머스 플랫폼 개발',
     github: 'https://github.com',
     demo: 'https://demo.com',
@@ -111,7 +112,7 @@ const projects: Project[] = [
     thumbnail: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?w=600&h=400&fit=crop',
     status: 'in-progress',
     techStack: ['TypeScript', 'Node.js', 'CLI'],
-    members: ['강민준'],
+    participants: ['강민준'],
     goal: '개발자 경험(DX) 개선 및 프로젝트 초기 설정 시간 단축',
     github: 'https://github.com',
     startDate: '2025.02',
@@ -125,7 +126,7 @@ const projects: Project[] = [
     thumbnail: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&h=400&fit=crop',
     status: 'completed',
     techStack: ['Next.js', 'Prisma', 'Vercel'],
-    members: ['강민준', '윤재현'],
+    participants: ['강민준', '윤재현'],
     goal: '개발자들 간의 건강한 소통과 지식 공유 문화 활성화',
     github: 'https://github.com',
     demo: 'https://demo.com',
@@ -134,14 +135,14 @@ const projects: Project[] = [
   },
 ]
 
-const filters: { value: ProjectStatus; label: string }[] = [
+const filters: { value: ProjectFilter; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'in-progress', label: '진행중' },
   { value: 'completed', label: '완료' },
 ]
 
 export function ProjectsGrid() {
-  const [activeFilter, setActiveFilter] = useState<ProjectStatus>('all')
+  const [activeFilter, setActiveFilter] = useState<ProjectFilter>('all')
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
 
   const filteredProjects = projects.filter(

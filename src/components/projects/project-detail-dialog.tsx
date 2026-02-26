@@ -9,7 +9,7 @@ import {
   CarouselPrevious,
   type CarouselApi,
 } from '@/components/ui/carousel'
-import { Project, Screenshot } from './project-card'
+import { Project, Screenshot } from '@/types/project'
 import { cn } from '@/lib/utils'
 import { GitHubIcon } from '@/components/icons/github-icon'
 
@@ -171,8 +171,8 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                     <h3>프로젝트 멤버</h3>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {project.members && project.members.length > 0 ? (
-                      project.members.map((member) => (
+                    {project.participants && project.participants.length > 0 ? (
+                      project.participants.map((member) => (
                         <span
                           key={member}
                           className="px-3 py-1.5 bg-secondary text-secondary-foreground rounded-md text-sm font-medium"
