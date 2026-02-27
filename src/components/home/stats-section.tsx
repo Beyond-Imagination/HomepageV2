@@ -2,12 +2,15 @@ import { animate, motion, useInView, useMotionValue, useTransform } from 'framer
 import { useEffect, useMemo, useRef } from 'react'
 import { Rocket, Users, Calendar, GraduationCap } from 'lucide-react'
 import { TeamMember } from '@/types/teamMember'
+import { Project } from '@/types/project'
 import generatedTeamMembers from '@/data/team.generated.json'
+import generatedProjects from '@/data/projects.generated.json'
 
 const FOUNDING_DATE = new Date('2017-03-01')
 
 const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]
 const activeTeamMembers = teamMembers.filter((member) => !member.leaveDate)
+const totalProjectCount = (generatedProjects as Project[]).length
 const totalMemberCount = teamMembers.length
 const activeMemberCount = activeTeamMembers.length
 
@@ -57,9 +60,9 @@ export function StatsSection() {
     () => [
       {
         icon: Rocket,
-        target: 12,
+        target: totalProjectCount,
         label: 'Projects',
-        description: '완료된 프로젝트',
+        description: '프로젝트',
       },
       {
         icon: Users,
