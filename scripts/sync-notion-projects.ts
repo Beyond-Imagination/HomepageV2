@@ -341,6 +341,42 @@ async function fetchDatabasePages() {
 const imageProcessor = new ImageProcessor()
 const projectMapper = new ProjectMapper()
 
+function parseProjectStartDateToTimestamp(value: string) {
+  const trimmed = value.trim()
+  const fullDateMatch = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(trimmed)
+  if (fullDateMatch) {
+    const year = Number(fullDateMatch[1])
+    const month = Number(fullDateMatch[2]) - 1
+    const day = Number(fullDateMatch[3])
+    return Date.UTC(year, month, day)
+  }
+
+  const yearMonthMatch = /^(\d{4})\.(\d{2})$/.exec(trimmed)
+  if (yearMonthMatch) {
+    const year = Number(yearMonthMatch[1])
+    const month = Number(yearMonthMatch[2]) - 1
+    return Date.UTC(year, month, 1)
+  }
+
+  return 0
+}
+
+// 프로젝트 시작일 기준 최신순
+function sortProjectsByStartDateDesc(projects: Project[]) {
+  return [...projects]
+    .sort((a, b) => {
+      const diff =
+        parseProjectStartDateToTimestamp(b.startDate) -
+        parseProjectStartDateToTimestamp(a.startDate)
+      if (diff !== 0) return diff
+      return a.title.localeCompare(b.title, 'ko')
+    })
+    .map((project, index) => ({
+      ...project,
+      id: index + 1,
+    }))
+}
+
 async function processPage(page: NotionPage, index: number) {
   const title = page.properties.Name?.title?.[0]?.plain_text || page.id
 
@@ -430,16 +466,17 @@ async function run() {
   )
 
   const projects = results.map((r) => r.project)
+  const sortedProjects = sortProjectsByStartDateDesc(projects)
   const pendingUpdates = results
     .map((r) => r.pendingUpdate)
     .filter((u): u is ProjectPendingUpdate => u !== null)
 
   // Save JSON
   mkdirSync(dirname(OUTPUT_JSON_PATH), { recursive: true })
-  writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(projects, null, 2)}\n`)
+  writeFileSync(OUTPUT_JSON_PATH, `${JSON.stringify(sortedProjects, null, 2)}\n`)
   writeFileSync(OUTPUT_PENDING_UPDATES_PATH, `${JSON.stringify(pendingUpdates, null, 2)}\n`)
 
-  console.log(`[${LOG_TAG}] Synced ${projects.length} project(s).`)
+  console.log(`[${LOG_TAG}] Synced ${sortedProjects.length} project(s).`)
   console.log(`[${LOG_TAG}] Pending Notion updates: ${pendingUpdates.length}`)
 }
 
