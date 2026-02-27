@@ -358,7 +358,7 @@ function parseProjectStartDateToTimestamp(value: string) {
     return Date.UTC(year, month, 1)
   }
 
-  return Number.NEGATIVE_INFINITY
+  return 0
 }
 
 // 프로젝트 시작일 기준 최신순
