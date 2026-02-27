@@ -46,7 +46,7 @@ function getScreenshotThumbnailSrc(item: string | Screenshot): string {
   if (item.thumbnailSrc?.trim()) return item.thumbnailSrc
 
   const src = item.src?.trim()
-  if (!src) return src
+  if (!src) return ''
   return inferThumbnailLinkFromOriginal(src) || src
 }
 
