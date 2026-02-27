@@ -1,10 +1,12 @@
+import { lazy } from 'react'
 import { useRoutes } from 'react-router-dom'
 import Layout from '@/components/Layout'
-import Home from '@/pages/Home'
-import Contact from '@/pages/Contact'
-import Gallery from '@/pages/Gallery'
-import Projects from '@/pages/Projects'
-import Team from '@/pages/Team'
+
+const Home = lazy(() => import('@/pages/Home'))
+const Contact = lazy(() => import('@/pages/Contact'))
+const Gallery = lazy(() => import('@/pages/Gallery'))
+const Projects = lazy(() => import('@/pages/Projects'))
+const Team = lazy(() => import('@/pages/Team'))
 
 export default function App() {
   return useRoutes([
