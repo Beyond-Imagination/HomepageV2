@@ -9,9 +9,16 @@ import type {
 } from './lib/types.ts'
 import { CONCURRENT_LIMIT, notionToken } from './lib/constants.ts'
 import { downloadImage, guessExtension } from './lib/utils.ts'
-import { createThumbnail } from './lib/image-processor.ts'
+import { createThumbnail, optimizeOriginalImage } from './lib/image-processor.ts'
 import type { Project, Screenshot } from '../src/types/project.ts'
 
+function inferThumbnailLinkFromOriginal(originalLink: string, pageId: string) {
+  if (!originalLink) return null
+  if (originalLink.startsWith(OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH)) {
+    return `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${pageId}-thumbnail.webp`
+  }
+  return null
+}
 const OUTPUT_JSON_PATH = 'src/data/projects.generated.json'
 const OUTPUT_PENDING_UPDATES_PATH = 'src/data/projects.pending-updates.json'
 const OUTPUT_IMAGE_ORIGINAL_DIR = 'public/images/projects/original'
@@ -90,6 +97,17 @@ class ImageProcessor {
     const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
 
     writeFileSync(normalizedOriginalPath, data)
+    const isOptimized = optimizeOriginalImage(normalizedOriginalPath, normalizedOriginalPath, {
+      maxWidth: 1920,
+      quality: 100,
+    })
+
+    if (!isOptimized) {
+      console.warn(
+        `[${LOG_TAG}] 썸네일 원본 이미지 최적화에 실패했습니다. (원본 파일 유지됨): page ${page.id}`
+      )
+    }
+
     const mbThumbCreated = createThumbnail(normalizedOriginalPath, thumbPath, {
       width: THUMB_WIDTH,
       quality: THUMB_QUALITY,
@@ -102,7 +120,10 @@ class ImageProcessor {
       finalUrl = `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${page.id}-thumbnail${extension}`
     }
 
-    return { url: finalUrl }
+    return {
+      url: finalUrl,
+      originalUrl: `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${page.id}-thumbnail${extension}`,
+    }
   }
 
   async processScreenshots(page: NotionPage, propertyName: string, fallbackUrls: string[]) {
@@ -128,22 +149,22 @@ class ImageProcessor {
         const { contentType, data } = await downloadImage(url)
         const extension = guessExtension(url, contentType)
         const filename = `${page.id}-screenshot-${i}${extension}`
-        const webpFilename = `${page.id}-screenshot-${i}.webp`
-
         const originalPath = join(OUTPUT_IMAGE_ORIGINAL_DIR, filename)
-        const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, webpFilename)
 
         writeFileSync(originalPath, data)
-
-        const isThumbCreated = createThumbnail(originalPath, thumbPath, {
-          width: THUMB_WIDTH,
-          quality: THUMB_QUALITY,
+        const isOptimized = optimizeOriginalImage(originalPath, originalPath, {
+          maxWidth: 1920,
+          quality: 100,
         })
 
+        if (!isOptimized) {
+          console.warn(
+            `[${LOG_TAG}] 스크린샷 원본 이미지 최적화에 실패했습니다. (원본 파일 유지됨): page ${page.id}, index ${i}`
+          )
+        }
+
         newScreenshots.push({
-          src: isThumbCreated
-            ? `${OUTPUT_IMAGE_THUMB_PUBLIC_BASE_PATH}/${webpFilename}`
-            : `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${filename}`,
+          src: `${OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH}/${filename}`,
           title: `Screenshot ${i + 1}`,
         })
       } catch (e) {
@@ -272,6 +293,7 @@ class ProjectMapper {
     page: NotionPage,
     index: number,
     thumbUrl?: string | null,
+    thumbnailOriginal?: string | null,
     screenshots?: Screenshot[]
   ): Project {
     const title = this.pickPageTitle(page)
@@ -297,6 +319,7 @@ class ProjectMapper {
       startDate,
       endDate: endDate || '',
       thumbnail: thumbUrl || '',
+      thumbnailOriginal: thumbnailOriginal || undefined,
       github,
       demo,
       screenshots,
@@ -346,6 +369,7 @@ async function processPage(page: NotionPage, index: number) {
 
   // Image Processing
   let thumbnailUrl = projectMapper.pickThumbnailUrl(page)
+  let thumbnailOriginalUrl: string | null = null
   let screenshots = projectMapper.pickScreenshotsInfo(page)
   const pendingUpdates: Record<string, unknown> = {}
 
@@ -359,7 +383,13 @@ async function processPage(page: NotionPage, index: number) {
       )
       if (result) {
         thumbnailUrl = result.url
-        pendingUpdates[notionThumbnailUrlPropertyName] = { url: thumbnailUrl }
+        thumbnailOriginalUrl = result.originalUrl
+        pendingUpdates[notionThumbnailUrlPropertyName] = { url: thumbnailOriginalUrl }
+      } else {
+        thumbnailOriginalUrl = thumbnailUrl
+        if (thumbnailUrl.startsWith(OUTPUT_IMAGE_ORIGINAL_PUBLIC_BASE_PATH)) {
+          thumbnailUrl = inferThumbnailLinkFromOriginal(thumbnailUrl, page.id) || thumbnailUrl
+        }
       }
     } catch (e) {
       console.error(`[${LOG_TAG}] Failed to process thumbnail for ${title}:`, e)
@@ -398,7 +428,13 @@ async function processPage(page: NotionPage, index: number) {
     }
   }
 
-  const project = projectMapper.mapNotionPageToProject(page, index, thumbnailUrl, screenshots)
+  const project = projectMapper.mapNotionPageToProject(
+    page,
+    index,
+    thumbnailUrl,
+    thumbnailOriginalUrl,
+    screenshots
+  )
 
   const pendingUpdate: ProjectPendingUpdate | null =
     Object.keys(pendingUpdates).length > 0 ? { pageId: page.id, properties: pendingUpdates } : null

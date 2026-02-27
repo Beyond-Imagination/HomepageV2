@@ -60,3 +60,25 @@ export function resizeAndCrop(
     outputPath,
   ])
 }
+
+/**
+ * 목적: 스크린샷의 크기가 벗어날 경우 잘려서 보이는 것을 방지하기 위함
+ * 원본 이미지의 품질을 유지하면서 명시된 최대 너비를 초과하는 경우에만 줄인다.
+ * -quality 100 으로 압축 손실 방지
+ */
+export function optimizeOriginalImage(
+  originalPath: string,
+  outputPath: string,
+  options: { maxWidth?: number; quality?: number } = {}
+): boolean {
+  const { maxWidth = 1920, quality = 100 } = options
+  return runImageMagick([
+    originalPath,
+    '-auto-orient',
+    '-resize',
+    `${maxWidth}>`,
+    '-quality',
+    String(quality),
+    outputPath,
+  ])
+}
