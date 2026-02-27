@@ -10,6 +10,7 @@ export interface ProjectBase {
   id: number | string
   title: string
   thumbnail: string
+  thumbnailOriginal?: string
   techStack: string[]
   participants: string[]
   goal: string

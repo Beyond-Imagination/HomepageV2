@@ -113,7 +113,7 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
           <div className="relative flex w-full h-64 md:h-80 items-center justify-center overflow-hidden bg-muted">
             {project.thumbnail ? (
               <img
-                src={project.thumbnail}
+                src={project.thumbnailOriginal || project.thumbnail}
                 alt={project.title}
                 className="absolute inset-0 w-full h-full object-cover"
               />

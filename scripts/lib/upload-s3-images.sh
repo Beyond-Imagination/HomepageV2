@@ -13,9 +13,16 @@ fi
 
 IMAGE_DIR="public/images/$DOMAIN"
 
+# 이 아래는 만약 ci,cd 환경이 변경될 경우 수정이 필요한 부분입니다.
+# 로컬 환경에서의 테스트를 위해서 어쩔 수 없이 bypass하는 로직을 추가했습니다.
 if [ -z "$S3_BUCKET" ]; then
-  echo "Error: S3_BUCKET environment variable is not set."
-  exit 1
+  if [ "$GITHUB_ACTIONS" = "true" ]; then
+    echo "Error: S3_BUCKET environment variable is required in GitHub Actions environment." >&2
+    echo "::error title=Missing Environment Variable::S3_BUCKET environment variable is not set."
+    exit 1
+  fi
+  echo "S3_BUCKET environment variable is not set. Skipping S3 upload for local testing."
+  exit 0
 fi
 
 if [ ! -d "$IMAGE_DIR" ]; then
