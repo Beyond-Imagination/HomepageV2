@@ -323,15 +323,17 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                           const title = getScreenshotTitle(item)
                           return (
                             <CarouselItem key={src} className="pl-4 basis-1/2 md:basis-1/3">
-                              <div
-                                className="rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all aspect-video group"
-                                onClick={() => handleScreenshotClick(index)}
-                              >
-                                <img
-                                  src={src}
-                                  alt={title || `${project.title} screenshot ${index + 1}`}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                />
+                              <div className="p-1">
+                                <div
+                                  className="rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all aspect-video group"
+                                  onClick={() => handleScreenshotClick(index)}
+                                >
+                                  <img
+                                    src={src}
+                                    alt={title || `${project.title} screenshot ${index + 1}`}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                  />
+                                </div>
                               </div>
                             </CarouselItem>
                           )
