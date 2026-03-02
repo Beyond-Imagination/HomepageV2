@@ -1,5 +1,6 @@
 export interface Screenshot {
   src: string
+  thumbnailSrc?: string
   title: string
 }
 

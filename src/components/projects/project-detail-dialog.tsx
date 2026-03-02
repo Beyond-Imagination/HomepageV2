@@ -24,6 +24,32 @@ function getScreenshotSrc(item: string | Screenshot): string {
   return typeof item === 'string' ? item : item.src
 }
 
+function inferThumbnailLinkFromOriginal(originalLink: string) {
+  const normalized = originalLink.trim()
+  if (!normalized) return null
+
+  const marker = '/images/projects/original/'
+  const markerIndex = normalized.indexOf(marker)
+  if (markerIndex < 0) return null
+
+  const filename = normalized.slice(markerIndex + marker.length)
+  const match = filename.match(/^(.+)-screenshot-(\d+)\.[^.]+$/)
+  if (!match) return null
+
+  const pageId = match[1]
+  const screenshotIndex = match[2]
+  return `/images/projects/thumb/${pageId}-screenshot-${screenshotIndex}.webp`
+}
+
+function getScreenshotThumbnailSrc(item: string | Screenshot): string {
+  if (typeof item === 'string') return item
+  if (item.thumbnailSrc?.trim()) return item.thumbnailSrc
+
+  const src = item.src?.trim()
+  if (!src) return ''
+  return inferThumbnailLinkFromOriginal(src) || src
+}
+
 function getScreenshotTitle(item: string | Screenshot): string | undefined {
   return typeof item === 'string' ? undefined : item.title
 }
@@ -293,7 +319,7 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                     >
                       <CarouselContent className="">
                         {screenshots.map((item, index) => {
-                          const src = getScreenshotSrc(item)
+                          const src = getScreenshotThumbnailSrc(item)
                           const title = getScreenshotTitle(item)
                           return (
                             <CarouselItem key={src} className="pl-4 basis-1/2 md:basis-1/3">
