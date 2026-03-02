@@ -317,12 +317,12 @@ export function ProjectDetailDialog({ project, isOpen, onClose }: ProjectDetailD
                       }}
                       className="w-full"
                     >
-                      <CarouselContent className="-ml-2">
+                      <CarouselContent className="">
                         {screenshots.map((item, index) => {
                           const src = getScreenshotThumbnailSrc(item)
                           const title = getScreenshotTitle(item)
                           return (
-                            <CarouselItem key={src} className="pl-2 basis-1/2 md:basis-1/3">
+                            <CarouselItem key={src} className="pl-4 basis-1/2 md:basis-1/3">
                               <div className="p-1">
                                 <div
                                   className="rounded-xl overflow-hidden border border-border shadow-sm bg-muted/30 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all aspect-video group"
