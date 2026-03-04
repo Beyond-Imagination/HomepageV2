@@ -11,7 +11,8 @@ interface Star {
   maxLife: number
 }
 
-const MAX_STARS = 100
+const MAX_STARS = 500 // 안전을 위한 별 개수 최대 제한
+const STAR_CREATION_RATE = 33 // 초당 별 생성 갯수
 
 const createStar = (canvasWidth: number, canvasHeight: number): Star => {
   return {
@@ -69,21 +70,27 @@ export function HeroSection() {
 
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // 초당 약 1.2개의 별이 생성되도록 deltaTime 기반 확률 계산
-      const STAR_CREATION_RATE = 1.2
+      // 초당 약 STAR_CREATION_RATE 개의 별이 생성되도록 deltaTime 기반 확률 계산
       if (stars.length < MAX_STARS && Math.random() < STAR_CREATION_RATE * deltaTime) {
-        stars.push(createStar(canvas.width, canvas.height))
+        // 수명 다한 별 1개 찾기
+        const deadStar = stars.find((s) => s.life >= s.maxLife)
+        if (deadStar) {
+          // 새로운 데이터로 덮어쓰기
+          Object.assign(deadStar, createStar(canvas.width, canvas.height))
+        } else if (stars.length < MAX_STARS) {
+          // 꽉 차지 않았다면 새로 추가
+          stars.push(createStar(canvas.width, canvas.height))
+        }
       }
 
-      stars.forEach((star, index) => {
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const star = stars[i]
         star.life += deltaTime
 
-        // 최대 생명 주기에 도달한 별은 다시 생성
-        if (star.life >= star.maxLife) {
-          stars[index] = createStar(canvas.width, canvas.height)
-          return
-        }
+        // 수명이 다한 별은 무시
+        if (star.life >= star.maxLife) continue
 
+        // 그리기 로직
         const progress = star.life / star.maxLife
         star.opacity = Math.sin(progress * Math.PI)
 
@@ -91,7 +98,7 @@ export function HeroSection() {
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2)
         ctx.fillStyle = `rgba(74, 144, 217, ${star.opacity * 0.5})`
         ctx.fill()
-      })
+      }
 
       animationFrameId = requestAnimationFrame(animate)
     }
