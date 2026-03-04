@@ -43,6 +43,7 @@ export function HeroSection() {
 
     let animationFrameId: number
     let stars: Star[] = []
+    let lastTime = 0 // 주사율 독립적 애니메이션을 위한 변수
     const initStarNum = 30
 
     const resizeCanvas = () => {
@@ -58,16 +59,24 @@ export function HeroSection() {
     window.addEventListener('resize', resizeCanvas)
     resizeCanvas()
 
-    const animate = () => {
+    const animate = (timestamp: number) => {
+      // 첫 프레임 처리
+      if (!lastTime) lastTime = timestamp
+
+      // 경과 시간 계산 (초 단위)
+      const deltaTime = (timestamp - lastTime) / 1000
+      lastTime = timestamp
+
       ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-      // 최대 별 개수에 도달하지 않은 경우 지속적으로 별 추가
-      if (stars.length < MAX_STARS && Math.random() < 0.02) {
+      // 초당 약 1.2개의 별이 생성되도록 deltaTime 기반 확률 계산
+      const STAR_CREATION_RATE = 1.2
+      if (stars.length < MAX_STARS && Math.random() < STAR_CREATION_RATE * deltaTime) {
         stars.push(createStar(canvas.width, canvas.height))
       }
 
       stars.forEach((star, index) => {
-        star.life += 1 / 60
+        star.life += deltaTime
 
         // 최대 생명 주기에 도달한 별은 다시 생성
         if (star.life >= star.maxLife) {
@@ -87,7 +96,7 @@ export function HeroSection() {
       animationFrameId = requestAnimationFrame(animate)
     }
 
-    animate()
+    animationFrameId = requestAnimationFrame(animate)
 
     return () => {
       cancelAnimationFrame(animationFrameId)
