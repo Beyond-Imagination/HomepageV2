@@ -15,7 +15,7 @@ function TeamCard({ member }: { member: TeamMember }) {
     <div
       className={`group rounded-xl border overflow-hidden transition-all duration-300 hover:-translate-y-1 ${
         isTeamLeader
-          ? 'bg-gradient-to-b from-accent/10 to-card border-accent/40 shadow-[0_12px_28px_-14px_hsl(var(--accent)/0.8)] hover:shadow-[0_16px_36px_-14px_hsl(var(--accent)/0.95)]'
+          ? 'bg-linear-to-b from-accent/10 to-card border-2 border-accent/50 shadow-[0_12px_28px_-14px_hsl(var(--accent)/0.8)] hover:shadow-[0_16px_36px_-14px_hsl(var(--accent)/0.95)]'
           : 'bg-card border-border hover:shadow-lg'
       }`}
     >
@@ -23,7 +23,7 @@ function TeamCard({ member }: { member: TeamMember }) {
       <div className="relative h-64 bg-secondary overflow-hidden">
         {isTeamLeader && (
           <span className="absolute left-3 top-3 z-10 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground shadow">
-            Team Lead
+            팀 리더
           </span>
         )}
         {!imageError && member.image ? (
