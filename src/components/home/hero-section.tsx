@@ -48,12 +48,21 @@ export function HeroSection() {
     const initStarNum = 30
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
+      const dpr = window.devicePixelRatio || 1
+      const width = window.innerWidth
+      const height = window.innerHeight
+
+      canvas.width = width * dpr
+      canvas.height = height * dpr
+
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
+
+      ctx.scale(dpr, dpr)
       stars = []
       // 초기 별 렌더링
       for (let i = 0; i < initStarNum; i++) {
-        stars.push(createStar(canvas.width, canvas.height))
+        stars.push(createStar(width, height))
       }
     }
 
@@ -68,18 +77,20 @@ export function HeroSection() {
       const deltaTime = (timestamp - lastTime) / 1000
       lastTime = timestamp
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
 
       // 초당 약 STAR_CREATION_RATE 개의 별이 생성되도록 deltaTime 기반 확률 계산
       if (stars.length < MAX_STARS && Math.random() < STAR_CREATION_RATE * deltaTime) {
         // 수명 다한 별 1개 찾기
         const deadStar = stars.find((s) => s.life >= s.maxLife)
+        const newStar = createStar(window.innerWidth, window.innerHeight)
+
         if (deadStar) {
           // 새로운 데이터로 덮어쓰기
-          Object.assign(deadStar, createStar(canvas.width, canvas.height))
+          Object.assign(deadStar, newStar)
         } else if (stars.length < MAX_STARS) {
           // 꽉 차지 않았다면 새로 추가
-          stars.push(createStar(canvas.width, canvas.height))
+          stars.push(newStar)
         }
       }
 
