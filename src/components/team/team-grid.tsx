@@ -5,14 +5,27 @@ import { TeamMember } from '@/types/teamMember'
 import generatedTeamMembers from '@/data/team.generated.json'
 
 const teamMembers: TeamMember[] = generatedTeamMembers as TeamMember[]
+const TEAM_LEADER_ROLE = '팀 리더'
 
 function TeamCard({ member }: { member: TeamMember }) {
   const [imageError, setImageError] = useState(false)
+  const isTeamLeader = member.role === TEAM_LEADER_ROLE
 
   return (
-    <div className="group bg-card rounded-xl border border-border overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
+    <div
+      className={`group rounded-xl border overflow-hidden transition-all duration-300 hover:-translate-y-1 ${
+        isTeamLeader
+          ? 'bg-gradient-to-b from-accent/10 to-card border-accent/40 shadow-[0_12px_28px_-14px_hsl(var(--accent)/0.8)] hover:shadow-[0_16px_36px_-14px_hsl(var(--accent)/0.95)]'
+          : 'bg-card border-border hover:shadow-lg'
+      }`}
+    >
       {/* Image */}
       <div className="relative h-64 bg-secondary overflow-hidden">
+        {isTeamLeader && (
+          <span className="absolute left-3 top-3 z-10 rounded-full bg-accent px-3 py-1 text-xs font-semibold text-accent-foreground shadow">
+            Team Lead
+          </span>
+        )}
         {!imageError && member.image ? (
           <img
             src={member.image}
@@ -74,7 +87,11 @@ function TeamCard({ member }: { member: TeamMember }) {
         >
           {member.name}
         </h3>
-        <p className="text-sm text-accent font-medium mb-3">{member.role}</p>
+        <p
+          className={`text-sm font-medium mb-3 ${isTeamLeader ? 'text-accent' : 'text-accent/80'}`}
+        >
+          {member.role}
+        </p>
         <p className="text-sm text-muted-foreground leading-relaxed mb-4">{member.bio}</p>
         <div className="flex flex-wrap gap-2">
           {member.pastProjects.map((project) => (
