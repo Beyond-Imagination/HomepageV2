@@ -9,6 +9,7 @@ interface Star {
   opacity: number
   life: number
   maxLife: number
+  isDead: boolean
 }
 
 const MAX_STARS = 500 // 안전을 위한 별 개수 최대 제한
@@ -22,6 +23,7 @@ const createStar = (canvasWidth: number, canvasHeight: number): Star => {
     opacity: 0,
     life: 0,
     maxLife: 1.5 + Math.random() * 4,
+    isDead: false,
   }
 }
 
@@ -44,6 +46,7 @@ export function HeroSection() {
 
     let animationFrameId: number
     let stars: Star[] = []
+    let deadIndices: number[] = []
     let lastTime = 0 // 주사율 독립적 애니메이션을 위한 변수
     const initStarNum = 30
 
@@ -60,6 +63,7 @@ export function HeroSection() {
 
       ctx.scale(dpr, dpr)
       stars = []
+      deadIndices = []
       // 초기 별 렌더링
       for (let i = 0; i < initStarNum; i++) {
         stars.push(createStar(width, height))
@@ -80,16 +84,14 @@ export function HeroSection() {
       ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
 
       // 초당 약 STAR_CREATION_RATE 개의 별이 생성되도록 deltaTime 기반 확률 계산
-      if (stars.length < MAX_STARS && Math.random() < STAR_CREATION_RATE * deltaTime) {
+      if (Math.random() < STAR_CREATION_RATE * deltaTime) {
         // 수명 다한 별 1개 찾기
-        const deadStar = stars.find((s) => s.life >= s.maxLife)
         const newStar = createStar(window.innerWidth, window.innerHeight)
 
-        if (deadStar) {
-          // 새로운 데이터로 덮어쓰기
-          Object.assign(deadStar, newStar)
+        if (deadIndices.length > 0) {
+          const targetIndex = deadIndices.pop()!
+          Object.assign(stars[targetIndex], newStar)
         } else if (stars.length < MAX_STARS) {
-          // 꽉 차지 않았다면 새로 추가
           stars.push(newStar)
         }
       }
@@ -99,7 +101,13 @@ export function HeroSection() {
         star.life += deltaTime
 
         // 수명이 다한 별은 무시
-        if (star.life >= star.maxLife) continue
+        if (star.isDead) continue
+
+        if (star.life >= star.maxLife) {
+          star.isDead = true
+          deadIndices.push(i)
+          continue
+        }
 
         // 그리기 로직
         const progress = star.life / star.maxLife
