@@ -37,7 +37,7 @@ export function HeroSection() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
-    let animationFrameId: number
+    let animationFrameId: number | null = null
     let stars: Star[] = []
     let deadIndices: number[] = []
     let lastTime = 0 // 주사율 독립적 애니메이션을 위한 변수
@@ -115,11 +115,39 @@ export function HeroSection() {
       animationFrameId = requestAnimationFrame(animate)
     }
 
-    animationFrameId = requestAnimationFrame(animate)
+    const startAnimation = () => {
+      if (!animationFrameId) {
+        lastTime = 0
+        animationFrameId = requestAnimationFrame(animate)
+      }
+    }
+
+    const stopAnimation = () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          startAnimation()
+        } else {
+          stopAnimation()
+        }
+      },
+      {
+        threshold: 0,
+        rootMargin: '200px',
+      }
+    )
+    observer.observe(canvas)
 
     return () => {
-      cancelAnimationFrame(animationFrameId)
+      stopAnimation()
       window.removeEventListener('resize', resizeCanvas)
+      observer.disconnect()
     }
   }, [])
 
