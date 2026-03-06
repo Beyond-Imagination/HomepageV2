@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
@@ -28,14 +28,7 @@ const createStar = (canvasWidth: number, canvasHeight: number): Star => {
 }
 
 export function HeroSection() {
-  const [scrollY, setScrollY] = useState(0)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
-
-  useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -181,7 +174,6 @@ export function HeroSection() {
         {/* Logo with Parallax */}
         <motion.div
           className="mb-8"
-          style={{ y: scrollY * 0.2 }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
