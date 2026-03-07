@@ -1,69 +1,160 @@
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useRef } from 'react'
+import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 interface Star {
-  id: number
-
-  left: number
-  top: number
-  duration: number
+  x: number
+  y: number
+  size: number
+  opacity: number
+  life: number
+  maxLife: number
+  isDead: boolean
 }
 
-const createStar = (id: number): Star => ({
-  id,
-  left: Math.random() * 100,
-  top: Math.random() * 100,
-  duration: 1.5 + Math.random() * 4, // 1.5~5.5초로 더 다양하게
-})
+const MAX_STARS = 500 // 안전을 위한 별 개수 최대 제한
+const STAR_CREATION_RATE = 33 // 초당 별 생성 갯수
+
+const createStar = (canvasWidth: number, canvasHeight: number): Star => {
+  return {
+    x: Math.random() * canvasWidth,
+    y: Math.random() * canvasHeight,
+    size: 0.5 + Math.random() * 2,
+    opacity: 0,
+    life: 0,
+    maxLife: 1.5 + Math.random() * 4,
+    isDead: false,
+  }
+}
 
 export function HeroSection() {
-  const [scrollY, setScrollY] = useState(0)
-  const [stars, setStars] = useState<Star[]>([])
-  const nextIdRef = useRef(0)
-
-  const removeStar = useCallback((id: number) => {
-    setStars((stars) => stars.filter((star) => star.id !== id))
-  }, [])
-
-  const addStar = useCallback(() => {
-    const newId = nextIdRef.current++
-    const star = createStar(newId)
-    setStars((stars) => [...stars, star])
-    // 별의 수명이 다하면 제거 (fade in + 유지 + fade out)
-    setTimeout(() => removeStar(newId), star.duration * 1000)
-  }, [removeStar])
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY)
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
+    const canvas = canvasRef.current
+    if (!canvas) return
 
-  useEffect(() => {
-    const initialCount = 30
-    const initialStars: Star[] = []
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
 
-    for (let i = 0; i < initialCount; i++) {
-      const star = createStar(i)
-      initialStars.push(star)
-      setTimeout(() => removeStar(i), star.duration * 1000)
+    let animationFrameId: number | null = null
+    let stars: Star[] = []
+    let deadIndices: number[] = []
+    let lastTime = 0 // 주사율 독립적 애니메이션을 위한 변수
+    const initStarNum = 30
+
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1
+      const width = window.innerWidth
+      const height = window.innerHeight
+
+      canvas.width = width * dpr
+      canvas.height = height * dpr
+
+      canvas.style.width = `${width}px`
+      canvas.style.height = `${height}px`
+
+      ctx.scale(dpr, dpr)
+      stars = []
+      deadIndices = []
+      // 초기 별 렌더링
+      for (let i = 0; i < initStarNum; i++) {
+        stars.push(createStar(width, height))
+      }
     }
 
-    setStars(initialStars)
-    nextIdRef.current = initialCount
+    window.addEventListener('resize', resizeCanvas)
+    resizeCanvas()
 
-    // 주기적으로 새 별 추가
-    const interval = setInterval(() => {
-      addStar()
-    }, 30)
+    const animate = (timestamp: number) => {
+      // 첫 프레임 처리
+      if (!lastTime) lastTime = timestamp
 
-    return () => clearInterval(interval)
-  }, [addStar, removeStar])
+      // 경과 시간 계산 (초 단위)
+      const deltaTime = (timestamp - lastTime) / 1000
+      lastTime = timestamp
+
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight)
+
+      // 초당 약 STAR_CREATION_RATE 개의 별이 생성되도록 deltaTime 기반 확률 계산
+      if (Math.random() < STAR_CREATION_RATE * deltaTime) {
+        // 수명 다한 별 1개 찾기
+        const newStar = createStar(window.innerWidth, window.innerHeight)
+
+        if (deadIndices.length > 0) {
+          const targetIndex = deadIndices.pop()!
+          Object.assign(stars[targetIndex], newStar)
+        } else if (stars.length < MAX_STARS) {
+          stars.push(newStar)
+        }
+      }
+
+      for (let i = stars.length - 1; i >= 0; i--) {
+        const star = stars[i]
+        star.life += deltaTime
+
+        // 수명이 다한 별은 무시
+        if (star.isDead) continue
+
+        if (star.life >= star.maxLife) {
+          star.isDead = true
+          deadIndices.push(i)
+          continue
+        }
+
+        // 그리기 로직
+        const progress = star.life / star.maxLife
+        star.opacity = Math.sin(progress * Math.PI)
+
+        ctx.beginPath()
+        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2)
+        ctx.fillStyle = `rgba(74, 144, 217, ${star.opacity * 0.5})`
+        ctx.fill()
+      }
+
+      animationFrameId = requestAnimationFrame(animate)
+    }
+
+    const startAnimation = () => {
+      if (!animationFrameId) {
+        lastTime = 0
+        animationFrameId = requestAnimationFrame(animate)
+      }
+    }
+
+    const stopAnimation = () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+      }
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          startAnimation()
+        } else {
+          stopAnimation()
+        }
+      },
+      {
+        threshold: 0,
+        rootMargin: '200px',
+      }
+    )
+    observer.observe(canvas)
+
+    return () => {
+      stopAnimation()
+      window.removeEventListener('resize', resizeCanvas)
+      observer.disconnect()
+    }
+  }, [])
 
   return (
     <section className="relative h-screen flex items-center justify-center overflow-hidden bg-secondary">
       {/* Background Elements */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       <div className="absolute inset-0 overflow-hidden">
         {/* Orbital Lines */}
         <svg
@@ -104,24 +195,6 @@ export function HeroSection() {
             transform="rotate(-20 50 50)"
           />
         </svg>
-
-        {/* Stars */}
-        <AnimatePresence>
-          {stars.map((star) => (
-            <motion.div
-              key={star.id}
-              className="absolute w-1 h-1 bg-accent/50 rounded-full"
-              style={{
-                left: `${star.left}%`,
-                top: `${star.top}%`,
-              }}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0 }}
-              transition={{ duration: star.duration / 2, ease: 'easeInOut' }}
-            />
-          ))}
-        </AnimatePresence>
       </div>
 
       {/* Main Content */}
@@ -129,7 +202,6 @@ export function HeroSection() {
         {/* Logo with Parallax */}
         <motion.div
           className="mb-8"
-          style={{ y: scrollY * 0.2 }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
