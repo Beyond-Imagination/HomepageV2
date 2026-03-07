@@ -1,4 +1,4 @@
-import { getRetryDelayMs, sleep } from './utils.ts'
+import { fetchWithRetry, getRetryDelayMs, sleep } from './utils.ts'
 import type { NotionQueryResponse, PendingLinkUpdate, NotionBlocksResponse } from './types.ts'
 import {
   NOTION_API_MAX_RETRIES,
@@ -29,7 +29,10 @@ async function notionFetch(
         options.body = JSON.stringify(body)
       }
 
-      const response = await fetch(`${NOTION_BASE_URL}${endpoint}`, options)
+      const response = await fetchWithRetry(`${NOTION_BASE_URL}${endpoint}`, options, {
+        retries: 2,
+        logTag: `${logTag}-network`,
+      })
 
       if (response.ok) {
         const text = await response.text()

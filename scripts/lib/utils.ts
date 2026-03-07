@@ -46,8 +46,54 @@ export function guessExtension(url: string, contentType: string | null) {
   return '.jpg'
 }
 
-export async function downloadImage(url: string) {
-  const response = await fetch(url)
+export interface FetchWithRetryOptions {
+  retries?: number
+  baseDelayMs?: number
+  logTag?: string
+}
+
+export async function fetchWithRetry(
+  url: string | URL | globalThis.Request,
+  init?: RequestInit,
+  options: FetchWithRetryOptions = {}
+): Promise<Response> {
+  const { retries = 3, baseDelayMs = 1000, logTag = 'fetchWithRetry' } = options
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, init)
+
+      // 여기서는 네트워크 그 자체의 에러 상황만 처리
+      return response
+    } catch (error) {
+      const isLastAttempt = attempt === retries
+      if (isLastAttempt) {
+        throw error
+      }
+
+      // 지수 백오프: 1초, 2초, 4초...
+      const delayMs = baseDelayMs * Math.pow(2, attempt - 1)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+
+      console.warn(
+        `[${logTag}] Network error on fetch to ${typeof url === 'string' ? url : '...'} (Attempt ${attempt}/${retries}). Retrying in ${delayMs}ms... Error: ${errorMessage}`
+      )
+
+      await sleep(delayMs)
+    }
+  }
+
+  throw new Error(`[${logTag}] fetchWithRetry failed fundamentally`)
+}
+
+export async function downloadImage(
+  url: string
+): Promise<{ contentType: string | null; data: Buffer }> {
+  const response = await fetchWithRetry(url, undefined, {
+    retries: 3,
+    logTag: 'downloadImage',
+  })
+
   if (!response.ok) {
     throw new Error(`Image download failed: ${response.status}`)
   }
