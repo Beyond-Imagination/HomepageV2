@@ -150,6 +150,8 @@ class ImageProcessor {
         const extension = guessExtension(url, contentType)
         const filename = `${page.id}-screenshot-${i}${extension}`
         const originalPath = join(OUTPUT_IMAGE_ORIGINAL_DIR, filename)
+        const thumbFilename = `${page.id}-screenshot-${i}.webp`
+        const thumbPath = join(OUTPUT_IMAGE_THUMB_DIR, thumbFilename)
 
         writeFileSync(originalPath, data)
         const isOptimized = optimizeOriginalImage(originalPath, originalPath, {
@@ -160,6 +162,17 @@ class ImageProcessor {
         if (!isOptimized) {
           console.warn(
             `[${LOG_TAG}] 스크린샷 원본 이미지 최적화에 실패했습니다. (원본 파일 유지됨): page ${page.id}, index ${i}`
+          )
+        }
+
+        const isThumbCreated = createThumbnail(originalPath, thumbPath, {
+          width: THUMB_WIDTH,
+          quality: THUMB_QUALITY,
+        })
+
+        if (!isThumbCreated) {
+          console.warn(
+            `[${LOG_TAG}] 스크린샷 썸네일 이미지 생성에 실패했습니다.: page ${page.id}, index ${i}`
           )
         }
 
