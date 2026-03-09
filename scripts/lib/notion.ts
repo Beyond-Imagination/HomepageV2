@@ -1,8 +1,7 @@
-import { fetchWithRetry, getRetryDelayMs, sleep } from './utils.ts'
+import { fetchWithRetry, createStandardRetryPolicy } from './utils.ts'
 import type { NotionQueryResponse, PendingLinkUpdate, NotionBlocksResponse } from './types.ts'
 import {
   NOTION_API_MAX_RETRIES,
-  NOTION_API_RETRY_DELAY_MS,
   NOTION_BASE_URL,
   NOTION_VERSION,
   notionS3LinkPropertyName,
@@ -15,54 +14,33 @@ async function notionFetch(
   body: Record<string, unknown> | null,
   logTag: string
 ): Promise<unknown> {
-  for (let attempt = 1; attempt <= NOTION_API_MAX_RETRIES; attempt += 1) {
-    try {
-      const options: RequestInit = {
-        method,
-        headers: {
-          Authorization: `Bearer ${notionToken}`,
-          'Notion-Version': NOTION_VERSION,
-          'Content-Type': 'application/json',
-        },
-      }
-      if (body) {
-        options.body = JSON.stringify(body)
-      }
-
-      const response = await fetchWithRetry(`${NOTION_BASE_URL}${endpoint}`, options, {
-        retries: 2,
-        logTag: `${logTag}-network`,
-      })
-
-      if (response.ok) {
-        const text = await response.text()
-        return text ? JSON.parse(text) : {}
-      }
-
-      const responseText = await response.text()
-      const isRetryable = response.status === 429 || response.status >= 500
-      if (!isRetryable || attempt === NOTION_API_MAX_RETRIES) {
-        throw new Error(`Notion API (${method}) failed: ${response.status} ${responseText}`)
-      }
-
-      const retryAfterMs = getRetryDelayMs(
-        response.status,
-        response.headers.get('retry-after'),
-        logTag
-      )
-      console.warn(
-        `[${logTag}] Retry ${attempt}/${NOTION_API_MAX_RETRIES} after ${retryAfterMs}ms: ${response.status}`
-      )
-      await sleep(retryAfterMs)
-    } catch (error) {
-      if (attempt === NOTION_API_MAX_RETRIES) {
-        throw error instanceof Error ? error : new Error(String(error))
-      }
-      console.warn(`[${logTag}] Network retry ${attempt}/${NOTION_API_MAX_RETRIES}`)
-      await sleep(NOTION_API_RETRY_DELAY_MS)
-    }
+  const options: RequestInit = {
+    method,
+    headers: {
+      Authorization: `Bearer ${notionToken}`,
+      'Notion-Version': NOTION_VERSION,
+      'Content-Type': 'application/json',
+    },
   }
-  throw new Error('Notion API failed: retry loop terminated unexpectedly')
+  if (body) {
+    options.body = JSON.stringify(body)
+  }
+
+  const response = await fetchWithRetry(`${NOTION_BASE_URL}${endpoint}`, options, {
+    retries: NOTION_API_MAX_RETRIES,
+    logTag,
+    shouldRetry: createStandardRetryPolicy({ logTag }),
+  })
+
+  if (response.ok) {
+    const text = await response.text()
+    return text ? JSON.parse(text) : {}
+  }
+
+  const responseText = await response.text()
+  throw new Error(
+    `Notion API (${method}) failed: HTTP ${response.status}\nServer Response: ${responseText}`
+  )
 }
 
 export async function notionRequest<T>(

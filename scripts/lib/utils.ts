@@ -20,6 +20,20 @@ export function sleep(ms: number) {
   })
 }
 
+/**
+ * 429 및 5xx 에러에 대한 재시도 정책을 생성하는 팩토리 함수입니다.
+ * @param options.logTag 상위 호출부의 logTag 값을 반드시 명시적으로 전달하여
+ * 로그 파편화(Log Fragmentation) 현상을 방지해야 합니다.
+ */
+export function createStandardRetryPolicy({ logTag }: { logTag: string }) {
+  return (res: Response) => {
+    const isRetryable = res.status === 429 || res.status >= 500
+    if (!isRetryable) return false
+
+    return getRetryDelayMs(res.status, res.headers.get('retry-after'), logTag)
+  }
+}
+
 export function getRetryDelayMs(status: number, retryAfterHeader: string | null, logTag: string) {
   if (status === 429) {
     const retryAfterMs = parseRetryAfterMs(retryAfterHeader)
@@ -50,6 +64,7 @@ export interface FetchWithRetryOptions {
   retries?: number
   baseDelayMs?: number
   logTag?: string
+  shouldRetry?: (response: Response) => Promise<number | false> | number | false
 }
 
 export async function fetchWithRetry(
@@ -57,15 +72,30 @@ export async function fetchWithRetry(
   init?: RequestInit,
   options: FetchWithRetryOptions = {}
 ): Promise<Response> {
-  const { retries = 3, baseDelayMs = 1000, logTag = 'fetchWithRetry' } = options
+  const { retries = 3, baseDelayMs = 1000, logTag = 'fetchWithRetry', shouldRetry } = options
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const response = await fetch(url, init)
 
-      // 여기서는 네트워크 그 자체의 에러 상황만 처리
+      // 디테일한 재시도 콜백 로직은 DI 받음
+      // ex) 400 응답이 오면 재시도없이 통보, 429 응답은 재시도 등등...
+      // 여기서는 성공했거나 shouldRetry가 false 처리한 결과를 반환
+      if (!response.ok && shouldRetry) {
+        const delayMs = await shouldRetry(response)
+
+        if (typeof delayMs === 'number') {
+          console.warn(
+            `[${logTag}] HTTP ${response.status} (Attempt ${attempt}/${retries}). Retrying in ${delayMs}ms...`
+          )
+          await sleep(delayMs)
+          continue
+        }
+      }
+
       return response
     } catch (error) {
+      // 네트워크 에러 처리
       const isLastAttempt = attempt === retries
       if (isLastAttempt) {
         throw error
@@ -75,8 +105,11 @@ export async function fetchWithRetry(
       const delayMs = baseDelayMs * Math.pow(2, attempt - 1)
       const errorMessage = error instanceof Error ? error.message : String(error)
 
+      // 로그용으로 쿼리 파라미터를 자르고 path까지만 표시하여 인증 정보 노출 방지
+      const safeLogUrl = typeof url === 'string' ? url.split('?')[0] : '...'
+
       console.warn(
-        `[${logTag}] Network error on fetch to ${typeof url === 'string' ? url : '...'} (Attempt ${attempt}/${retries}). Retrying in ${delayMs}ms... Error: ${errorMessage}`
+        `[${logTag}] Network error on fetch to ${safeLogUrl} (Attempt ${attempt}/${retries}). Retrying in ${delayMs}ms... Error: ${errorMessage}`
       )
 
       await sleep(delayMs)
@@ -92,6 +125,7 @@ export async function downloadImage(
   const response = await fetchWithRetry(url, undefined, {
     retries: 3,
     logTag: 'downloadImage',
+    shouldRetry: createStandardRetryPolicy({ logTag: 'downloadImage' }),
   })
 
   if (!response.ok) {
