@@ -27,7 +27,7 @@ async function notionFetch(
   }
 
   const response = await fetchWithRetry(`${NOTION_BASE_URL}${endpoint}`, options, {
-    retries: NOTION_API_MAX_RETRIES,
+    maxAttempts: NOTION_API_MAX_RETRIES,
     logTag,
     shouldRetry: createStandardRetryPolicy({ logTag }),
   })

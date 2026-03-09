@@ -61,7 +61,7 @@ export function guessExtension(url: string, contentType: string | null) {
 }
 
 export interface FetchWithRetryOptions {
-  retries?: number
+  maxAttempts?: number
   baseDelayMs?: number
   logTag?: string
   shouldRetry?: (response: Response) => Promise<number | false> | number | false
@@ -72,7 +72,12 @@ export async function fetchWithRetry(
   init?: RequestInit,
   options: FetchWithRetryOptions = {}
 ): Promise<Response> {
-  const { retries = 3, baseDelayMs = 1000, logTag = 'fetchWithRetry', shouldRetry } = options
+  const {
+    maxAttempts: retries = 3,
+    baseDelayMs = 1000,
+    logTag = 'fetchWithRetry',
+    shouldRetry,
+  } = options
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
@@ -122,14 +127,15 @@ export async function fetchWithRetry(
 export async function downloadImage(
   url: string
 ): Promise<{ contentType: string | null; data: Buffer }> {
+  const logTag = 'downloadImage'
   const response = await fetchWithRetry(url, undefined, {
-    retries: 3,
-    logTag: 'downloadImage',
-    shouldRetry: createStandardRetryPolicy({ logTag: 'downloadImage' }),
+    maxAttempts: 3,
+    logTag,
+    shouldRetry: createStandardRetryPolicy({ logTag }),
   })
 
   if (!response.ok) {
-    throw new Error(`Image download failed: ${response.status}`)
+    throw new Error(`[${logTag}] Image download failed: ${response.status}`)
   }
 
   const arrayBuffer = await response.arrayBuffer()
