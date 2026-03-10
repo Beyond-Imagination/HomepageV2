@@ -1,4 +1,4 @@
-# Beyond Imagination
+# Beyond_Imagination
 
 ## 개발 환경 설정
 

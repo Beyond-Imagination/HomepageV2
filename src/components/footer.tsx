@@ -13,13 +13,13 @@ export function Footer() {
             <div className="flex items-center gap-3">
               <img
                 src="/images/logo.svg"
-                alt="Beyond Imagination Logo"
+                alt="Beyond_Imagination Logo"
                 width={40}
                 height={40}
                 className="brightness-0 invert"
               />
               <span className="font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>
-                Beyond Imagination
+                Beyond_Imagination
               </span>
             </div>
             <p className="text-sm text-primary-foreground/70 leading-relaxed">
@@ -93,7 +93,7 @@ export function Footer() {
 
         <div className="mt-12 pt-8 border-t border-primary-foreground/10 text-center">
           <p className="text-sm text-primary-foreground/50">
-            &copy; {new Date().getFullYear()} Beyond Imagination. All rights reserved.
+            &copy; {new Date().getFullYear()} Beyond_Imagination. All rights reserved.
           </p>
         </div>
       </div>

@@ -209,7 +209,7 @@ export function HeroSection() {
           <div className="w-48 h-48 mx-auto rounded-full overflow-hidden relative shadow-primary/20">
             <img
               src="/images/logo.svg"
-              alt="Beyond Imagination Logo"
+              alt="Beyond_Imagination Logo"
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
             />
           </div>
@@ -223,7 +223,7 @@ export function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          Beyond Imagination
+          Beyond_Imagination
         </motion.h1>
 
         {/* Tagline */}

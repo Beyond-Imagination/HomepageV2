@@ -42,7 +42,7 @@ export function AboutSection() {
             About Us
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto text-pretty leading-relaxed">
-            Beyond Imagination은 열정적인 개발자들이 모여 만든 팀입니다. 우리는 기술을 통해 상상을
+            Beyond_Imagination은 열정적인 개발자들이 모여 만든 팀입니다. 우리는 기술을 통해 상상을
             현실로 만들고, 함께 성장하는 것을 목표로 합니다.
           </p>
         </motion.div>
