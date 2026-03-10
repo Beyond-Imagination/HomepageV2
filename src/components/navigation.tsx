@@ -22,7 +22,7 @@ export function Navigation() {
         <Link to="/" className="flex items-center gap-3 group">
           <img
             src="/images/logo.svg"
-            alt="Beyond Imagination Logo"
+            alt="Beyond_Imagination Logo"
             width={40}
             height={40}
             className="group-hover:scale-105 transition-transform"
@@ -31,7 +31,7 @@ export function Navigation() {
             className="font-semibold text-primary hidden sm:block"
             style={{ fontFamily: 'var(--font-heading)' }}
           >
-            Beyond Imagination
+            Beyond_Imagination
           </span>
         </Link>
 
