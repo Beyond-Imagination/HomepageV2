@@ -1,19 +1,99 @@
 import { spawnSync } from 'node:child_process'
+import { existsSync, unlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { basename, extname, join } from 'node:path'
 
 const IMAGICK_COMMANDS = ['magick', 'convert'] as const
+
+export type CommandResult = { error?: Error; status: number | null }
+export type CommandRunner = (command: string, args: string[]) => CommandResult
+
+const defaultRunner: CommandRunner = (command, args) => {
+  try {
+    const result = spawnSync(command, args, { stdio: 'ignore' })
+    return { error: result.error, status: result.status }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error : new Error(String(error)),
+      status: null,
+    }
+  }
+}
+
+/**
+ * HEIC/HEIF 확장자 여부 판별.
+ */
+export function isHeicFile(filePath: string): boolean {
+  return /\.(heic|heif)$/i.test(filePath)
+}
+
+/**
+ * HEIC 입력을 임시 JPEG로 사전 변환한다.
+ * 기본 ImageMagick 빌드/정책에서 HEIC 디코더가 비활성일 수 있으므로
+ * heif-convert(libheif) → sips(macOS) → magick `heic:` prefix 순으로 폴백한다.
+ * 생성된 임시 파일 경로를 반환하고, 모두 실패하면 null.
+ */
+function preConvertHeic(heicPath: string, runner: CommandRunner): string | null {
+  const tempPath = join(
+    tmpdir(),
+    `imagick-heic-${process.pid}-${Date.now()}-${basename(heicPath, extname(heicPath))}.jpg`
+  )
+
+  const attempts: Array<{ command: string; args: string[] }> = [
+    { command: 'heif-convert', args: [heicPath, tempPath] },
+    { command: 'sips', args: ['-s', 'format', 'jpeg', heicPath, '--out', tempPath] },
+    ...IMAGICK_COMMANDS.map((command) => ({
+      command,
+      args: [`heic:${heicPath}`, tempPath],
+    })),
+  ]
+
+  for (const { command, args } of attempts) {
+    const result = runner(command, args)
+    if (!result.error && result.status === 0 && existsSync(tempPath)) {
+      return tempPath
+    }
+  }
+
+  return null
+}
 
 /**
  * ImageMagick CLI (magick -> convert) fallback 실행.
  * 첫 번째로 성공하는 명령어의 결과를 반환한다.
+ *
+ * 입력이 HEIC/HEIF인 경우, 기본 디코더가 막혀 있을 수 있어
+ * 임시 JPEG로 사전 변환한 뒤 나머지 인자와 조합해 실행한다.
+ * runner 인자는 테스트용 DI 포인트로, 기본값은 실제 spawnSync 호출.
  */
-function runImageMagick(args: string[]): boolean {
-  for (const command of IMAGICK_COMMANDS) {
-    const result = spawnSync(command, args, { stdio: 'ignore' })
-    if (!result.error && result.status === 0) {
-      return true
+export function runImageMagick(args: string[], runner: CommandRunner = defaultRunner): boolean {
+  let tempConverted: string | null = null
+  let finalArgs = args
+
+  if (args.length > 0 && isHeicFile(args[0])) {
+    tempConverted = preConvertHeic(args[0], runner)
+    if (tempConverted) {
+      finalArgs = [tempConverted, ...args.slice(1)]
     }
   }
-  return false
+
+  try {
+    for (const command of IMAGICK_COMMANDS) {
+      const result = runner(command, finalArgs)
+      if (!result.error && result.status === 0) {
+        return true
+      }
+    }
+    return false
+  } finally {
+    if (tempConverted && existsSync(tempConverted)) {
+      try {
+        unlinkSync(tempConverted)
+      } catch {
+        // best-effort cleanup
+      }
+    }
+  }
 }
 
 /**

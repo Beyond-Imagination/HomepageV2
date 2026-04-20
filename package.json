@@ -19,6 +19,7 @@
     "sync:faq:all": "pnpm run sync:faq",
     "upload-images": "bash scripts/lib/upload-s3-images.sh",
     "build": "tsc && vite build",
+    "test": "node --test --experimental-strip-types scripts/lib/__tests__/image-processor.test.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
