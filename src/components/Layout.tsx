@@ -10,13 +10,17 @@ export default function Layout() {
 
   useEffect(() => {
     if ('scrollRestoration' in window.history) {
+      const originalScrollRestoration = window.history.scrollRestoration
       window.history.scrollRestoration = 'manual'
+      return () => {
+        window.history.scrollRestoration = originalScrollRestoration
+      }
     }
   }, [])
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [location.pathname])
+  }, [location.key])
 
   return (
     <div className="font-sans antialiased min-h-screen flex flex-col">
