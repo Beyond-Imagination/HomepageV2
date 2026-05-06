@@ -18,15 +18,15 @@ export default function Layout() {
     }
   }, [])
 
-  useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
-  }, [location.key])
-
   return (
     <div className="font-sans antialiased min-h-screen flex flex-col">
       <Navigation />
       <main className="flex-1">
-        <AnimatePresence mode="sync" initial={false}>
+        <AnimatePresence
+          mode="wait"
+          initial={false}
+          onExitComplete={() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' })}
+        >
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0, y: 12 }}
