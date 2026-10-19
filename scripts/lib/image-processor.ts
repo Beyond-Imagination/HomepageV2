@@ -10,9 +10,28 @@ export type CommandRunner = (command: string, args: string[]) => CommandResult
 
 const defaultRunner: CommandRunner = (command, args) => {
   try {
-    const result = spawnSync(command, args, { stdio: 'ignore' })
+    // stderr를 직접 전달해 변환 도구의 오류를 CI 로그에서도 확인할 수 있게 한다.
+    const result = spawnSync(command, args, { stdio: ['ignore', 'ignore', 'inherit'] })
+    if (result.error || result.status !== 0) {
+      console.warn(
+        `[image-processor] Command failed: ${JSON.stringify({
+          command,
+          args,
+          status: result.status,
+          signal: result.signal,
+          error: result.error?.message,
+        })}`
+      )
+    }
     return { error: result.error, status: result.status }
   } catch (error) {
+    console.warn(
+      `[image-processor] Command threw: ${JSON.stringify({
+        command,
+        args,
+        error: error instanceof Error ? error.message : String(error),
+      })}`
+    )
     return {
       error: error instanceof Error ? error : new Error(String(error)),
       status: null,

@@ -251,7 +251,17 @@ async function processPage(
     })
 
     if (!thumbCreated) {
-      throw new Error('Thumbnail generation failed. Install ImageMagick (magick/convert).')
+      console.error(
+        `[${LOG_TAG}] Thumbnail generation failed: ${JSON.stringify({
+          pageId: page.id,
+          contentType,
+          extension,
+          bytes: data.length,
+          originalPath,
+          thumbPath,
+        })}`
+      )
+      throw new Error('Thumbnail generation failed. See image-processor errors above for details.')
     }
 
     return {
